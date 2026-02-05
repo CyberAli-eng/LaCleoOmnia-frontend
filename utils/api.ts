@@ -1,3 +1,24 @@
+/**
+ * Frontend API base and routes (backend is /api only)
+ *
+ * Canonical base URL: All API routes live under /api.
+ * Full base: https://lacleoomnia-api.onrender.com/api (or your deployed API origin + /api)
+ *
+ * Rule: Every request must go to {API_ORIGIN}/api/...
+ * - Wrong: https://lacleoomnia-api.onrender.com/auth/register
+ * - Correct: https://lacleoomnia-api.onrender.com/api/auth/register
+ *
+ * Paths passed to authFetch() / fetchFromApi() must be relative and start with /
+ * (e.g. /auth/login, /orders, /api is already in the base URL).
+ */
+
+// Ensures base URL always ends with /api (no trailing slash after /api)
+function normalizeApiBaseUrl(url: string): string {
+    const trimmed = url.replace(/\/+$/, '');
+    if (trimmed.endsWith('/api')) return trimmed;
+    return `${trimmed}/api`;
+}
+
 // Get API URL from environment variables
 // In production, this MUST be set in Vercel environment variables
 // Use consistent value for both server and client to avoid hydration issues
@@ -14,7 +35,7 @@ const getApiBaseUrl = () => {
             console.warn('⚠️ Ignoring production API URL in development. Using localhost:8000');
             return 'http://localhost:8000/api';
         }
-        return process.env.NEXT_PUBLIC_API_BASE_URL;
+        return normalizeApiBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL);
     }
     if (process.env.NEXT_PUBLIC_API_URL) {
         // In development, ignore production URLs
@@ -22,7 +43,7 @@ const getApiBaseUrl = () => {
             console.warn('⚠️ Ignoring production API URL in development. Using localhost:8000');
             return 'http://localhost:8000/api';
         }
-        return process.env.NEXT_PUBLIC_API_URL;
+        return normalizeApiBaseUrl(process.env.NEXT_PUBLIC_API_URL);
     }
     
     // Default fallback for local development - Python FastAPI backend
@@ -50,7 +71,8 @@ function delay(ms: number): Promise<void> {
 }
 
 export async function fetchFromApi(path: string, init?: RequestInit) {
-    const url = `${API_BASE_URL}${path}`;
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    const url = `${API_BASE_URL}${normalizedPath}`;
     let lastError: Error | null = null;
 
     for (let attempt = 0; attempt <= RETRY_MAX; attempt++) {
