@@ -5,6 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:local": "node setEnv.js local",
+    "build:stage": "node setEnv.js stage",
+    "build:prod": "node setEnv.js prod",
     "start": "next start",
     "lint": "eslint"
   },
