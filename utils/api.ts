@@ -23,29 +23,17 @@ function normalizeApiBaseUrl(url: string): string {
 // In production, this MUST be set in Vercel environment variables
 // Use consistent value for both server and client to avoid hydration issues
 const getApiBaseUrl = () => {
-    // In development, always use localhost (unless explicitly overridden)
-    // Note: window is not available during build, so check NODE_ENV first
-    const isDevelopment = process.env.NODE_ENV === 'development' || 
-                         (typeof window !== 'undefined' && window?.location?.hostname === 'localhost');
-    
-    // Check environment variables first
+    // Respect explicit environment variable configuration
+    // If NEXT_PUBLIC_API_BASE_URL is set, use it (even if running locally)
     if (process.env.NEXT_PUBLIC_API_BASE_URL) {
-        // In development, ignore production URLs
-        if (isDevelopment && process.env.NEXT_PUBLIC_API_BASE_URL.includes('onrender.com')) {
-            console.warn('⚠️ Ignoring production API URL in development. Using localhost:8000');
-            return 'http://localhost:8000/api';
-        }
         return normalizeApiBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL);
     }
+
+    // Fallback to alternate variable name
     if (process.env.NEXT_PUBLIC_API_URL) {
-        // In development, ignore production URLs
-        if (isDevelopment && process.env.NEXT_PUBLIC_API_URL.includes('onrender.com')) {
-            console.warn('⚠️ Ignoring production API URL in development. Using localhost:8000');
-            return 'http://localhost:8000/api';
-        }
         return normalizeApiBaseUrl(process.env.NEXT_PUBLIC_API_URL);
     }
-    
+
     // Default fallback for local development - Python FastAPI backend
     return 'http://localhost:8000/api';
 };
