@@ -5,9 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:local": "node setEnv.js local",
-    "build:stage": "node setEnv.js stage",
-    "build:prod": "node setEnv.js prod",
+    "build:local": "node setEnv.mjs local",
+    "build:stage": "node setEnv.mjs stage",
+    "build:prod": "node setEnv.mjs prod",
     "start": "next start",
     "lint": "eslint"
   },
@@ -25,6 +25,7 @@
     "next": "16.1.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "recharts": "^2.12.7",
     "tailwind-merge": "^2.5.2",
     "zod": "^3.23.8"
   },

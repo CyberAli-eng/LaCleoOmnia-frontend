@@ -22,13 +22,17 @@ function AuthShopifyContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const shop = searchParams?.get("shop")?.trim() || null;
-  const [status, setStatus] = useState<"idle" | "redirecting" | "error">("idle");
-  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<"idle" | "redirecting" | "error">(
+    () => (shop ? "redirecting" : "error")
+  );
+  const [error, setError] = useState<string | null>(() =>
+    shop
+      ? null
+      : "Missing shop parameter. Use Dashboard → Channels → Shopify → Connect and enter your store."
+  );
 
   useEffect(() => {
     if (!shop) {
-      setStatus("error");
-      setError("Missing shop parameter. Use Dashboard → Channels → Shopify → Connect and enter your store.");
       return;
     }
 
@@ -40,7 +44,6 @@ function AuthShopifyContent() {
       return;
     }
 
-    setStatus("redirecting");
     authFetch(`/channels/shopify/oauth/install?shop=${encodeURIComponent(shop)}`)
       .then((data: { installUrl?: string }) => {
         if (data?.installUrl) {

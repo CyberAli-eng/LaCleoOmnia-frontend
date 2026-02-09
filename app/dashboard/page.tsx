@@ -15,6 +15,9 @@ interface Overview {
   orderAlerts: { pendingOrders: number; pendingShipment: number };
   productAlerts: { lowStockCount: number };
   channelAlerts: { connectedCount: number };
+  cashPending?: number;
+  rtoLoss?: number;
+  netProfit?: number;
   recentOrders: Array<{
     id: string;
     externalId: string;
@@ -25,9 +28,20 @@ interface Overview {
   }>;
 }
 
+interface ProfitSummary {
+  netProfit?: number;
+  marginPercent?: number;
+}
+
+interface SyncJob {
+  finishedAt?: string;
+  startedAt?: string;
+  createdAt?: string;
+}
+
 export default function DashboardPage() {
   const [overview, setOverview] = useState<Overview | null>(null);
-  const [profitSummary, setProfitSummary] = useState<any>(null);
+  const [profitSummary, setProfitSummary] = useState<ProfitSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastSync, setLastSync] = useState<string | null>(null);
 
@@ -57,9 +71,9 @@ export default function DashboardPage() {
         }));
       }
       
-      const jobs = Array.isArray(syncJobs) ? syncJobs : (syncJobs as { jobs?: any[] })?.jobs || [];
+      const jobs = Array.isArray(syncJobs) ? (syncJobs as SyncJob[]) : (syncJobs as { jobs?: SyncJob[] })?.jobs || [];
       if (jobs.length > 0) {
-        const last = jobs.sort((a: any, b: any) => {
+        const last = jobs.sort((a, b) => {
           const tA = new Date(a.finishedAt || a.startedAt || a.createdAt || 0).getTime();
           const tB = new Date(b.finishedAt || b.startedAt || b.createdAt || 0).getTime();
           return tB - tA;
@@ -153,15 +167,15 @@ export default function DashboardPage() {
             <p className="mt-1 text-xs text-slate-500">Yesterday: {o.yesterdayItems} items</p>
           </div>
           <div className={`rounded-xl border border-slate-100 p-4 ${
-            (o as any).netProfit >= 0 ? 'bg-green-50' : 'bg-red-50'
+            (o.netProfit ?? 0) >= 0 ? "bg-green-50" : "bg-red-50"
           }`}>
             <p className="text-xs font-medium text-slate-500">Net profit</p>
             <p className={`mt-1 text-2xl font-bold ${
-              (o as any).netProfit >= 0 ? 'text-green-700' : 'text-red-700'
+              (o.netProfit ?? 0) >= 0 ? "text-green-700" : "text-red-700"
             }`}>
-              {formatCurrency((o as any).netProfit || 0)}
+              {formatCurrency(o.netProfit ?? 0)}
             </p>
-            <p className="mt-1 text-xs text-slate-500">Today's profit</p>
+            <p className="mt-1 text-xs text-slate-500">Today&apos;s profit</p>
           </div>
         </div>
       </div>
@@ -207,7 +221,7 @@ export default function DashboardPage() {
             >
               <span className="text-sm font-medium text-yellow-800">Cash pending</span>
               <span className="text-xl font-bold text-yellow-700">
-                {formatCurrency((o as any).cashPending || 0)}
+                {formatCurrency(o.cashPending ?? 0)}
               </span>
             </Link>
             <Link
@@ -216,7 +230,7 @@ export default function DashboardPage() {
             >
               <span className="text-sm font-medium text-red-800">RTO loss</span>
               <span className="text-xl font-bold text-red-700">
-                {formatCurrency((o as any).rtoLoss || 0)}
+                {formatCurrency(o.rtoLoss ?? 0)}
               </span>
             </Link>
           </div>

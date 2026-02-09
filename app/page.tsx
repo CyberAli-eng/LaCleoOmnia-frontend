@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -18,16 +17,13 @@ function getToken(): string | null {
 }
 
 export default function LandingPage() {
-  const pathname = usePathname();
-  const [mounted, setMounted] = useState(false);
-  const [token, setToken] = useState<string | null>(null);
-
-  useEffect(() => {
-    setMounted(true);
-    setToken(getToken());
-  }, [pathname]);
-
-  const isLoggedIn = mounted && !!token;
+  const isClient = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+  const token = getToken();
+  const isLoggedIn = isClient && !!token;
 
   return (
     <div className="relative isolate overflow-hidden bg-white">
@@ -49,7 +45,7 @@ export default function LandingPage() {
             Per-order profit updates in real time—RTO, lost shipments, and settlement reconciliation included.
           </p>
           <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-            {!mounted ? (
+            {!isClient ? (
               <div className="h-12 w-32 animate-pulse rounded-lg bg-slate-200" />
             ) : isLoggedIn ? (
               <Link

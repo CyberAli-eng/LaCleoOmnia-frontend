@@ -4,34 +4,69 @@ import { useEffect, useState } from "react";
 import { authFetch } from "@/utils/api";
 import { formatCurrency } from "@/utils/currency";
 
+interface Order {
+  id: string;
+  externalId?: string;
+  source?: string;
+  status?: string;
+  total?: number;
+  createdAt?: string;
+}
+
+interface Summary {
+  totalOrders?: number;
+  recentOrders?: Order[];
+}
+
+interface AnalyticsStats {
+  totalOrders: number;
+  totalRevenue: number;
+  avgOrderValue: number;
+  bySource: Record<string, number>;
+  byStatus: Record<string, number>;
+  topSources: { source: string; count: number; percentage: number }[];
+  dailyRevenue: Record<string, number>;
+  recentOrders: Order[];
+}
+
 export default function AnalyticsPage() {
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<AnalyticsStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
-      authFetch("/orders").catch(() => []),
-      authFetch("/analytics/summary").catch(() => ({ totalOrders: 0, recentOrders: [] })),
+      authFetch("/orders").catch((): Order[] => []),
+      authFetch("/analytics/summary").catch((): Summary => ({ totalOrders: 0, recentOrders: [] })),
     ]).then(([orders, summary]) => {
       const ordersArray = Array.isArray(orders) ? orders : [];
-      const totalRevenue = ordersArray.reduce((sum: number, o: any) => sum + (o.total || 0), 0);
+      const totalRevenue = ordersArray.reduce((sum: number, order) => {
+        const amount = typeof order.total === "number" ? order.total : 0;
+        return sum + amount;
+      }, 0);
       const avgOrderValue = ordersArray.length > 0 ? totalRevenue / ordersArray.length : 0;
       
       const bySource: Record<string, number> = {};
       const byStatus: Record<string, number> = {};
       const dailyRevenue: Record<string, number> = {};
       
-      ordersArray.forEach((order: any) => {
-        bySource[order.source] = (bySource[order.source] || 0) + 1;
-        byStatus[order.status] = (byStatus[order.status] || 0) + 1;
-        const date = new Date(order.createdAt).toLocaleDateString();
-        dailyRevenue[date] = (dailyRevenue[date] || 0) + (order.total || 0);
+      ordersArray.forEach((order) => {
+        const source = order.source ?? "unknown";
+        const status = order.status ?? "unknown";
+        const date = order.createdAt ? new Date(order.createdAt).toLocaleDateString() : "unknown";
+        const amount = typeof order.total === "number" ? order.total : 0;
+        bySource[source] = (bySource[source] || 0) + 1;
+        byStatus[status] = (byStatus[status] || 0) + 1;
+        dailyRevenue[date] = (dailyRevenue[date] || 0) + amount;
       });
 
       const topSources = Object.entries(bySource)
         .sort(([, a], [, b]) => b - a)
         .slice(0, 5)
-        .map(([source, count]) => ({ source, count, percentage: (count / ordersArray.length) * 100 }));
+        .map(([source, count]) => ({
+          source,
+          count,
+          percentage: ordersArray.length > 0 ? (count / ordersArray.length) * 100 : 0,
+        }));
 
       setStats({
         totalOrders: summary?.totalOrders || ordersArray.length,
@@ -95,7 +130,7 @@ export default function AnalyticsPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-6">
           <h3 className="text-lg font-semibold text-slate-900 mb-4">Orders by Source</h3>
           <div className="space-y-3">
-            {stats?.topSources?.map((item: any) => (
+            {stats?.topSources?.map((item) => (
               <div key={item.source}>
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm font-medium text-slate-900">{item.source}</span>
@@ -118,7 +153,7 @@ export default function AnalyticsPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-6">
           <h3 className="text-lg font-semibold text-slate-900 mb-4">Orders by Status</h3>
           <div className="space-y-3">
-            {Object.entries(stats?.byStatus || {}).map(([status, count]: [string, any]) => (
+            {Object.entries(stats?.byStatus || {}).map(([status, count]: [string, number]) => (
               <div key={status} className="flex items-center justify-between">
                 <span className="text-sm font-medium text-slate-900 capitalize">{status}</span>
                 <span className="text-sm text-slate-600">{count} orders</span>
@@ -134,7 +169,7 @@ export default function AnalyticsPage() {
       <div className="rounded-2xl border border-slate-200 bg-white p-6">
         <h3 className="text-lg font-semibold text-slate-900 mb-4">Recent Orders</h3>
         <div className="space-y-2">
-          {(stats?.recentOrders || []).slice(0, 10).map((order: any) => (
+          {(stats?.recentOrders || []).slice(0, 10).map((order) => (
             <div key={order.id} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
               <div>
                 <p className="text-sm font-medium text-slate-900">#{order.externalId || order.id}</p>

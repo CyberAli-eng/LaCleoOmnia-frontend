@@ -110,8 +110,9 @@ export default function OrdersPage() {
     try {
       await authFetch(`/orders/${orderId}/${action}`, { method: "POST" });
       await loadOrders();
-    } catch (err: any) {
-      alert(err.message || "Action failed");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Action failed";
+      alert(message);
     } finally {
       setProcessing(new Set());
     }

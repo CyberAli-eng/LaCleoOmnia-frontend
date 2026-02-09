@@ -11,11 +11,9 @@ function LoginForm({ redirectTo }: { redirectTo: string }) {
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
-    const [mounted, setMounted] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
-        setMounted(true);
         const token = getCookie("token") || localStorage.getItem("token");
         if (token) {
             router.replace(redirectTo.startsWith("/") ? redirectTo : "/dashboard");
@@ -62,11 +60,14 @@ function LoginForm({ redirectTo }: { redirectTo: string }) {
                         // FastAPI validation errors can be arrays or strings
                         if (Array.isArray(data.detail)) {
                             // Parse Pydantic validation errors
-                            errorMessage = data.detail.map((err: any) => {
-                                const field = err.loc ? err.loc.slice(1).join('.') : 'field';
-                                const msg = err.msg || err.message || 'Invalid value';
-                                return `${field}: ${msg}`;
-                            }).join(', ');
+                            errorMessage = data.detail
+                                .map((err: unknown) => {
+                                    const typed = err as { loc?: Array<string | number>; msg?: string; message?: string };
+                                    const field = Array.isArray(typed.loc) ? typed.loc.slice(1).join(".") : "field";
+                                    const msg = typed.msg || typed.message || "Invalid value";
+                                    return `${field}: ${msg}`;
+                                })
+                                .join(", ");
                         } else {
                             errorMessage = String(data.detail);
                         }
@@ -77,7 +78,7 @@ function LoginForm({ redirectTo }: { redirectTo: string }) {
                     } else {
                         errorMessage = JSON.stringify(data);
                     }
-                } catch (parseError) {
+                } catch {
                     // If JSON parsing fails, try to get text
                     try {
                         const text = await res.text();
@@ -99,9 +100,10 @@ function LoginForm({ redirectTo }: { redirectTo: string }) {
             // Use replace to avoid back button issues; respect redirect (e.g. /auth/shopify?shop=...)
             const target = redirectTo.startsWith("/") ? redirectTo : "/dashboard";
             router.replace(target);
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Login error:", err);
-            let errorMessage = err.message || "Login failed";
+            const baseMessage = err instanceof Error ? err.message : "Login failed";
+            let errorMessage = baseMessage;
             
             // Handle object errors
             if (typeof errorMessage === 'object') {

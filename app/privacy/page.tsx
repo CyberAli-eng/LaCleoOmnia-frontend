@@ -22,7 +22,7 @@ export default function PrivacyPolicyPage() {
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-slate-900 mb-4">1. Introduction</h2>
             <p className="text-slate-600 leading-7 mb-4">
-              LaCleoOmnia ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our Order Management System (OMS) platform, including our Shopify app integration.
+              LaCleoOmnia (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our Order Management System (OMS) platform, including our Shopify app integration.
             </p>
             <p className="text-slate-600 leading-7">
               By using our services, you agree to the collection and use of information in accordance with this policy.
@@ -157,7 +157,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-slate-900 mb-4">9. Children's Privacy</h2>
+            <h2 className="text-2xl font-semibold text-slate-900 mb-4">9. Children&apos;s Privacy</h2>
             <p className="text-slate-600 leading-7">
               Our services are not intended for individuals under 18 years of age. We do not knowingly collect personal information from children.
             </p>
@@ -173,7 +173,7 @@ export default function PrivacyPolicyPage() {
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-slate-900 mb-4">11. Changes to This Policy</h2>
             <p className="text-slate-600 leading-7">
-              We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new policy on this page and updating the "Last updated" date. You are advised to review this policy periodically.
+              We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new policy on this page and updating the &quot;Last updated&quot; date. You are advised to review this policy periodically.
             </p>
           </section>
 

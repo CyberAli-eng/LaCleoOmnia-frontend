@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { authFetch } from "@/utils/api";
-import { TablePagination } from "@/app/components/TablePagination";
 import { GuideDrawer } from "@/app/components/GuideDrawer";
 
 interface WebhookEvent {
@@ -13,7 +12,7 @@ interface WebhookEvent {
   eventType?: string; // legacy
   payloadSummary?: string;
   status: "success" | "failed" | "pending";
-  payload?: any;
+  payload?: unknown;
   receivedAt?: string;
   createdAt?: string;
   processedAt?: string;
@@ -38,7 +37,7 @@ export default function WebhooksPage() {
   const [filterSource, setFilterSource] = useState<string>("all");
   const [registering, setRegistering] = useState(false);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize] = useState(10);
   const [guideOpen, setGuideOpen] = useState(false);
 
   useEffect(() => {
@@ -54,13 +53,15 @@ export default function WebhooksPage() {
         authFetch("/webhooks").catch(() => []),
         authFetch("/webhooks/subscriptions").catch(() => []),
       ]);
-      const rawEvents = Array.isArray(eventsData) ? eventsData : (eventsData?.events ?? []);
+      const rawEvents = Array.isArray(eventsData)
+        ? (eventsData as WebhookEvent[])
+        : ((eventsData as { events?: WebhookEvent[] })?.events ?? []);
       setEvents(
-        rawEvents.map((e: any) => ({
-          ...e,
-          eventType: e.topic ?? e.eventType,
-          receivedAt: e.createdAt ?? e.receivedAt,
-          status: e.error ? "failed" : e.processedAt ? "success" : "pending",
+        rawEvents.map((event) => ({
+          ...event,
+          eventType: event.topic ?? event.eventType,
+          receivedAt: event.createdAt ?? event.receivedAt,
+          status: event.error ? "failed" : event.processedAt ? "success" : "pending",
         }))
       );
       setSubscriptions(Array.isArray(subscriptionsData) ? subscriptionsData : (subscriptionsData?.subscriptions ?? []));
@@ -80,13 +81,14 @@ export default function WebhooksPage() {
       const msg = res?.message ?? "Webhooks registered";
       const errs = res?.errors ?? [];
       if (errs.length) {
-        alert(`${msg}. Errors: ${errs.map((e: any) => e.topic + ": " + e.error).join("; ")}`);
+        alert(`${msg}. Errors: ${errs.map((e) => `${e.topic}: ${e.error}`).join("; ")}`);
       } else {
         alert(msg + (res?.registered?.length ? ` (${res.registered.length} topics)` : ""));
       }
       await loadData();
-    } catch (err: any) {
-      alert("Register failed: " + (err?.message ?? "Unknown error"));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      alert("Register failed: " + message);
     } finally {
       setRegistering(false);
     }
@@ -97,8 +99,8 @@ export default function WebhooksPage() {
       await authFetch(`/webhooks/events/${eventId}/retry`, { method: "POST" });
       await loadData();
       alert("Webhook retried successfully");
-    } catch (err: any) {
-      const msg = err?.message ?? "";
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "";
       if (msg.includes("501") || msg.includes("not supported") || msg.includes("payload is not stored")) {
         alert("Retry is not supported for stored events (payload not kept). Re-sync orders or inventory from Integrations if needed.");
       } else {

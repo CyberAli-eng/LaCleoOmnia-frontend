@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { getCookie, deleteCookie, setCookie } from "@/utils/cookies";
 import { authFetch } from "@/utils/api";
@@ -23,29 +23,98 @@ const navItemsBase = [
 ];
 const navItemUsers = { href: "/dashboard/users", label: "Users", icon: "👥" };
 
+interface ConnectedChannel {
+  id: string;
+  name: string;
+}
+
+const connectedChannelsStore = (() => {
+  let data: ConnectedChannel[] = [];
+  let fetching = false;
+  const listeners = new Set<() => void>();
+
+  const notify = () => {
+    listeners.forEach((listener) => listener());
+  };
+
+  const fetchData = async () => {
+    if (fetching) return;
+    fetching = true;
+    try {
+      const list = await authFetch("/integrations/connected-summary").catch(() => []);
+      data = Array.isArray(list) ? list : [];
+    } catch {
+      data = [];
+    } finally {
+      fetching = false;
+      notify();
+    }
+  };
+
+  return {
+    subscribe(listener: () => void) {
+      listeners.add(listener);
+      if (listeners.size === 1) {
+        void fetchData();
+      }
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    getSnapshot() {
+      return data;
+    },
+    refresh() {
+      void fetchData();
+    },
+  };
+})();
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [userName, setUserName] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
-  const [integrations, setIntegrations] = useState<any[]>([]);
-  const [connectedChannels, setConnectedChannels] = useState<{ id: string; name: string }[]>([]);
+  const [userName] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const stored = localStorage.getItem("user");
+      if (!stored) return null;
+      const parsed = JSON.parse(stored);
+      return parsed?.name || parsed?.email || null;
+    } catch {
+      return null;
+    }
+  });
+  const [userRole, setUserRole] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const stored = localStorage.getItem("user");
+      if (!stored) return null;
+      const parsed = JSON.parse(stored);
+      return parsed?.role ?? null;
+    } catch {
+      return null;
+    }
+  });
+  const connectedChannels = useSyncExternalStore(
+    connectedChannelsStore.subscribe,
+    connectedChannelsStore.getSnapshot,
+    () => []
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [showQuickActions, setShowQuickActions] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const isClient = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
     return localStorage.getItem("dashboard-sidebar-collapsed") === "true";
   });
 
   useEffect(() => {
-    setMounted(true);
-    try {
-      const stored = localStorage.getItem("dashboard-sidebar-collapsed");
-      setSidebarCollapsed(stored === "true");
-    } catch {}
     const token = getCookie("token") || localStorage.getItem("token");
     if (!token) {
       router.replace("/login");
@@ -57,44 +126,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!getCookie("token") && token) {
       setCookie("token", token, 7);
     }
-    const stored = localStorage.getItem("user");
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        setUserName(parsed?.name || parsed?.email || null);
-        setUserRole(parsed?.role ?? null);
-      } catch {
-        setUserName(null);
-        setUserRole(null);
-      }
-    }
     // Refresh user role from API (e.g. so admin sees Users menu)
     authFetch("/auth/me")
       .then((user: { role?: string }) => {
         if (user?.role) setUserRole(user.role);
       })
       .catch(() => {});
-    loadIntegrations();
-    loadConnectedChannels();
+    connectedChannelsStore.refresh();
   }, [router, pathname]);
-
-  const loadIntegrations = async () => {
-    try {
-      const configData = await authFetch("/config/status").catch(() => ({ integrations: [] }));
-      setIntegrations(configData?.integrations || []);
-    } catch (err) {
-      console.error("Failed to load integrations:", err);
-    }
-  };
-
-  const loadConnectedChannels = async () => {
-    try {
-      const list = await authFetch("/integrations/connected-summary").catch(() => []);
-      setConnectedChannels(Array.isArray(list) ? list : []);
-    } catch {
-      setConnectedChannels([]);
-    }
-  };
 
   const handleGlobalSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -295,7 +334,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </button>
                 <div className="min-w-0">
                   <h1 className="text-lg font-semibold text-slate-900 truncate">
-                    {mounted && userName ? `Hi, ${userName}` : "Dashboard"}
+                    {isClient && userName ? `Hi, ${userName}` : "Dashboard"}
                   </h1>
                   <p className="text-xs text-slate-500 mt-0.5">Profit & Ops Engine</p>
                 </div>

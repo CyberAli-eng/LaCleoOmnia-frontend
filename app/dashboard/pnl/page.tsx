@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { authFetch } from "@/utils/api";
 import { formatCurrency } from "@/utils/currency";
 import {
@@ -12,10 +12,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell
+  Bar
 } from "recharts";
 
 interface PnLData {
@@ -53,21 +50,23 @@ export default function PnLPage() {
   const [drilldownOpen, setDrilldownOpen] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState<PnLData | null>(null);
 
-  useEffect(() => {
-    loadPnLData();
-  }, [period]);
-
-  const loadPnLData = async () => {
+  const loadPnLData = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await authFetch(`/api/finance/pnl?period=${period}`);
+      // Backend finance API is under /api, and API_BASE_URL already includes /api,
+      // so we only pass the relative path here.
+      const data = await authFetch(`/finance/pnl?period=${period}`);
       setPnLData(data);
     } catch (err) {
       console.error("Failed to load P&L data:", err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [period]);
+
+  useEffect(() => {
+    loadPnLData();
+  }, [loadPnLData]);
 
   const getProfitColor = (value: number) => {
     return value >= 0 ? 'text-green-600' : 'text-red-600';
@@ -155,7 +154,7 @@ export default function PnLPage() {
         <div className="bg-white rounded-lg border border-slate-200 p-6">
           <p className="text-sm font-medium text-slate-500">Avg Order Value</p>
           <p className="mt-2 text-2xl font-bold text-slate-900">
-            {formatCurrency(data.avgOrderValue)}
+            {formatCurrency(data.periodData.reduce((sum, p) => sum + p.revenue, 0) / data.periodData.length)}
           </p>
           <p className="mt-1 text-xs text-slate-500">
             Per order

@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { authFetch } from "@/utils/api";
-import { formatCurrency } from "@/utils/currency";
 
 interface Expense {
   id: string;
@@ -59,8 +58,9 @@ export default function ExpenseEditor({ expense, onSave, onCancel, onDelete }: E
       }
 
       onSave(editingExpense);
-    } catch (err: any) {
-      setError(err.message || "Failed to save expense");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to save expense";
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -84,8 +84,9 @@ export default function ExpenseEditor({ expense, onSave, onCancel, onDelete }: E
       }
 
       onDelete();
-    } catch (err: any) {
-      setError(err.message || "Failed to delete expense");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to delete expense";
+      setError(message);
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { authFetch } from "@/utils/api";
 import { formatCurrency } from "@/utils/currency";
 
@@ -58,15 +58,8 @@ interface OrderFinanceDrawerProps {
 export default function OrderFinanceDrawer({ orderId, isOpen, onClose }: OrderFinanceDrawerProps) {
   const [orderFinance, setOrderFinance] = useState<OrderFinance | null>(null);
   const [loading, setLoading] = useState(true);
-  const [editingExpense, setEditingExpense] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (isOpen && orderId) {
-      loadOrderFinance();
-    }
-  }, [isOpen, orderId]);
-
-  const loadOrderFinance = async () => {
+  const loadOrderFinance = useCallback(async () => {
     setLoading(true);
     try {
       const data = await authFetch(`/api/finance/orders/${orderId}`);
@@ -76,7 +69,13 @@ export default function OrderFinanceDrawer({ orderId, isOpen, onClose }: OrderFi
     } finally {
       setLoading(false);
     }
-  };
+  }, [orderId]);
+
+  useEffect(() => {
+    if (isOpen && orderId) {
+      loadOrderFinance();
+    }
+  }, [isOpen, orderId, loadOrderFinance]);
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
@@ -108,15 +107,6 @@ export default function OrderFinanceDrawer({ orderId, isOpen, onClose }: OrderFi
       OVERDUE: "bg-red-50 text-red-700",
     };
     return colors[status] || "bg-slate-100 text-slate-700";
-  };
-
-  const getRiskColor = (level: string) => {
-    const colors: Record<string, string> = {
-      LOW: "bg-green-50 text-green-700",
-      MEDIUM: "bg-yellow-50 text-yellow-700",
-      HIGH: "bg-red-50 text-red-700",
-    };
-    return colors[level] || "bg-slate-100 text-slate-700";
   };
 
   if (!isOpen) return null;

@@ -70,7 +70,7 @@ export default function WorkersPage() {
     }
   }, [autoRefresh]);
 
-  const triggerSyncOrders = async (channelId: string, accountId: string | undefined, channelName: string) => {
+  const triggerSyncOrders = async (channelId: string, accountId: string | undefined) => {
     if (!accountId) {
       setMessage({ text: "No account linked for this channel. Connect the channel in Integrations first.", type: "error" });
       return;
@@ -81,14 +81,15 @@ export default function WorkersPage() {
       const res = await authFetch(`/sync/orders/${accountId}`, { method: "POST" }) as { message?: string };
       setMessage({ text: res?.message ?? "Order sync started.", type: "success" });
       await loadJobs();
-    } catch (err: any) {
-      setMessage({ text: err?.message ?? "Order sync failed.", type: "error" });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Order sync failed.";
+      setMessage({ text: message, type: "error" });
     } finally {
       setLoading(null);
     }
   };
 
-  const triggerSyncShipments = async (channelId: string, channelName: string) => {
+  const triggerSyncShipments = async (channelId: string) => {
     setLoading(`shipments-${channelId}`);
     setMessage(null);
     try {
@@ -98,14 +99,15 @@ export default function WorkersPage() {
         type: "success",
       });
       await loadJobs();
-    } catch (err: any) {
-      setMessage({ text: err?.message ?? "Shipment sync failed.", type: "error" });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Shipment sync failed.";
+      setMessage({ text: message, type: "error" });
     } finally {
       setLoading(null);
     }
   };
 
-  const triggerSyncInventory = async (channelId: string, channelName: string) => {
+  const triggerSyncInventory = async (channelId: string) => {
     if (channelId !== "SHOPIFY") {
       setMessage({ text: "Inventory sync is only available for Shopify.", type: "error" });
       return;
@@ -122,8 +124,9 @@ export default function WorkersPage() {
         type: "success",
       });
       await loadJobs();
-    } catch (err: any) {
-      setMessage({ text: err?.message ?? "Inventory sync failed.", type: "error" });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Inventory sync failed.";
+      setMessage({ text: message, type: "error" });
     } finally {
       setLoading(null);
     }

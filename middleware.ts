@@ -4,10 +4,6 @@ import type { NextRequest } from 'next/server';
 export function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   
-  // Public routes that don't require authentication
-  const publicRoutes = ['/login', '/register', '/'];
-  const isPublicRoute = publicRoutes.some(route => path === route || path.startsWith(route + '/'));
-  
   // Check for token in cookies (set by login)
   const token = request.cookies.get('token')?.value;
   

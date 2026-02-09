@@ -22,7 +22,7 @@ export default function TermsOfServicePage() {
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-slate-900 mb-4">1. Agreement to Terms</h2>
             <p className="text-slate-600 leading-7 mb-4">
-              By accessing or using LaCleoOmnia ("the Service"), you agree to be bound by these Terms of Service ("Terms"). If you disagree with any part of these terms, you may not access the Service.
+              By accessing or using LaCleoOmnia (&quot;the Service&quot;), you agree to be bound by these Terms of Service (&quot;Terms&quot;). If you disagree with any part of these terms, you may not access the Service.
             </p>
             <p className="text-slate-600 leading-7">
               These Terms apply to all users of the Service, including merchants, administrators, and any other users who access or use the Service.
@@ -119,7 +119,7 @@ export default function TermsOfServicePage() {
               <li>Fees are billed in advance on a recurring basis</li>
               <li>All fees are non-refundable unless required by law</li>
               <li>You are responsible for any taxes applicable to your use of the Service</li>
-              <li>We reserve the right to change pricing with 30 days' notice</li>
+              <li>We reserve the right to change pricing with 30 days&apos; notice</li>
               <li>Failure to pay may result in suspension or termination of your account</li>
             </ul>
           </section>
@@ -145,7 +145,7 @@ export default function TermsOfServicePage() {
               TO THE MAXIMUM EXTENT PERMITTED BY LAW:
             </p>
             <ul className="list-disc pl-6 text-slate-600 space-y-2 mb-4">
-              <li>THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND</li>
+              <li>THE SERVICE IS PROVIDED &quot;AS IS&quot; AND &quot;AS AVAILABLE&quot; WITHOUT WARRANTIES OF ANY KIND</li>
               <li>WE DISCLAIM ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE</li>
               <li>WE ARE NOT LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES</li>
               <li>OUR TOTAL LIABILITY SHALL NOT EXCEED THE AMOUNT YOU PAID US IN THE 12 MONTHS PRIOR TO THE CLAIM</li>

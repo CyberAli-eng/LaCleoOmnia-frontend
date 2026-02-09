@@ -28,9 +28,16 @@ interface InventoryItem {
   availableQty: number;
 }
 
+interface Warehouse {
+  id: string;
+  name: string;
+  city?: string;
+  state?: string;
+}
+
 export default function InventoryPage() {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
-  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>("all");
@@ -63,8 +70,9 @@ export default function InventoryPage() {
       const res = await authFetch("/integrations/shopify/sync", { method: "POST" }) as { orders_synced?: number; inventory_synced?: number; message?: string };
       alert(res?.message ?? `Synced. Inventory: ${res?.inventory_synced ?? 0} records.`);
       await loadData();
-    } catch (err: any) {
-      alert(`Sync failed: ${err?.message ?? "Unknown error"}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      alert(`Sync failed: ${message}`);
     } finally {
       setSyncing(false);
     }
@@ -80,7 +88,7 @@ export default function InventoryPage() {
         authFetch("/integrations/shopify/inventory").catch(() => ({ inventory: [], warning: null })),
       ]);
       setInventory(Array.isArray(inventoryData?.inventory) ? inventoryData.inventory : []);
-      setWarehouses(Array.isArray(warehousesData?.warehouses) ? warehousesData.warehouses : []);
+      setWarehouses(Array.isArray(warehousesData?.warehouses) ? (warehousesData.warehouses as Warehouse[]) : []);
       setShopifyInventory(Array.isArray(shopifyData?.inventory) ? shopifyData.inventory : []);
       if (shopifyData?.warning && typeof shopifyData.warning === "string") {
         setShopifyInventoryWarning(shopifyData.warning);
@@ -114,8 +122,9 @@ export default function InventoryPage() {
       setAdjustDelta("");
       setAdjustReason("");
       setAdjustWarehouse("");
-    } catch (err: any) {
-      alert(`Failed to adjust inventory: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to adjust inventory";
+      alert(`Failed to adjust inventory: ${message}`);
     }
   };
 
@@ -163,7 +172,6 @@ export default function InventoryPage() {
   const reservedQuantity = displayInventory.reduce((sum, item) => sum + item.reservedQty, 0);
   const availableQuantity = displayInventory.reduce((sum, item) => sum + item.availableQty, 0);
   const lowStockItems = displayInventory.filter((item) => item.availableQty < 10 && item.availableQty > 0).length;
-  const outOfStockItems = displayInventory.filter((item) => item.availableQty === 0).length;
   const isShowingShopifyOnly = inventory.length === 0 && shopifyInventory.length > 0;
 
   if (loading) {

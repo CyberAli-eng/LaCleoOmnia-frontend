@@ -30,6 +30,14 @@ interface ShipmentRow {
   createdAt: string;
 }
 
+interface OrderSummary {
+  id: string;
+  status?: string;
+  channelOrderId?: string;
+  customerName?: string;
+  orderTotal?: number;
+}
+
 const COURIERS = [
   { id: "shiprocket", name: "Shiprocket", icon: "🚚" },
   { id: "delhivery", name: "Delhivery", icon: "📦" },
@@ -43,7 +51,7 @@ const COURIERS = [
 export default function LabelsPage() {
   const [labels, setLabels] = useState<Label[]>([]);
   const [shipments, setShipments] = useState<ShipmentRow[]>([]);
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [selectedCourier, setSelectedCourier] = useState<string>("shiprocket");
@@ -51,8 +59,6 @@ export default function LabelsPage() {
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [selectedLabel, setSelectedLabel] = useState<Label | null>(null);
   const [generateSuccess, setGenerateSuccess] = useState<{ waybill: string; shippingLabel: string } | null>(null);
-  const [pageLabels, setPageLabels] = useState(1);
-  const [pageSizeLabels, setPageSizeLabels] = useState(10);
   const [pageShipments, setPageShipments] = useState(1);
   const [pageSizeShipments, setPageSizeShipments] = useState(10);
 
@@ -69,7 +75,7 @@ export default function LabelsPage() {
       ]);
       const labelsList = Array.isArray(labelsRes) ? labelsRes : (labelsRes?.labels ?? []);
       setLabels(labelsList);
-      setOrders(Array.isArray(ordersRes?.orders) ? ordersRes.orders : []);
+      setOrders(Array.isArray(ordersRes?.orders) ? (ordersRes.orders as OrderSummary[]) : []);
       const list = Array.isArray(shipmentsRes?.shipments) ? shipmentsRes.shipments : [];
       setShipments(list);
     } catch (err) {
@@ -113,8 +119,11 @@ export default function LabelsPage() {
       if (shippingLabel) {
         window.open(shippingLabel, "_blank");
       }
-    } catch (err: any) {
-      alert(err?.message ?? "Failed to generate Selloship label. Connect Selloship in Integrations → Logistics.");
+    } catch (err: unknown) {
+      const message = err instanceof Error
+        ? err.message
+        : "Failed to generate Selloship label. Connect Selloship in Integrations → Logistics.";
+      alert(message);
     } finally {
       setLoading(false);
     }
@@ -150,8 +159,9 @@ export default function LabelsPage() {
       setShowGenerateModal(false);
       setSelectedOrderId(null);
       setAwbNumber("");
-    } catch (err: any) {
-      alert(`Failed to generate label: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to generate label";
+      alert(`Failed to generate label: ${message}`);
     } finally {
       setLoading(false);
     }
@@ -160,10 +170,6 @@ export default function LabelsPage() {
   const totalLabels = labels.length;
   const pendingLabels = labels.filter((l) => l.status === "PENDING").length;
   const shippedLabels = labels.filter((l) => l.status !== "PENDING").length;
-  const paginatedLabels = useMemo(() => {
-    const start = (pageLabels - 1) * pageSizeLabels;
-    return labels.slice(start, start + pageSizeLabels);
-  }, [labels, pageLabels, pageSizeLabels]);
   const paginatedShipments = useMemo(() => {
     const start = (pageShipments - 1) * pageSizeShipments;
     return shipments.slice(start, start + pageSizeShipments);
@@ -220,7 +226,7 @@ export default function LabelsPage() {
               </tr>
             </thead>
             <tbody>
-              {paginatedLabels.map((label) => (
+              {labels.map((label) => (
                 <tr key={label.id} className="border-b border-slate-100 hover:bg-slate-50">
                   <td className="py-3 px-4">
                     <Link

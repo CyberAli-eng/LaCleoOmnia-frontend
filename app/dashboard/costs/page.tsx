@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import { authFetch, API_BASE_URL, getAuthHeaders } from "@/utils/api";
 import { formatCurrency } from "@/utils/currency";
 import { TablePagination } from "@/app/components/TablePagination";
@@ -36,7 +36,7 @@ export default function CostsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  const loadList = async () => {
+  const loadList = useCallback(async () => {
     setLoading(true);
     try {
       const q = search.trim() ? `?q=${encodeURIComponent(search.trim())}` : "";
@@ -48,12 +48,12 @@ export default function CostsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [search]);
 
   useEffect(() => {
     loadList();
     setPage(1);
-  }, [search]);
+  }, [search, loadList]);
   const paginatedRows = useMemo(() => {
     const start = (page - 1) * pageSize;
     return rows.slice(start, start + pageSize);
@@ -112,8 +112,9 @@ export default function CostsPage() {
       }
       resetForm();
       await loadList();
-    } catch (err: any) {
-      alert(err?.message ?? "Save failed");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Save failed";
+      alert(message);
     } finally {
       setSaving(false);
     }
@@ -125,8 +126,9 @@ export default function CostsPage() {
       await authFetch(`/sku-costs/${encodeURIComponent(sku)}`, { method: "DELETE" });
       await loadList();
       if (editing?.sku === sku) resetForm();
-    } catch (err: any) {
-      alert(err?.message ?? "Delete failed");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Delete failed";
+      alert(message);
     }
   };
 
@@ -162,8 +164,9 @@ export default function CostsPage() {
       setBulkResult(result);
       setBulkFile(null);
       await loadList();
-    } catch (err: any) {
-      alert(err?.message ?? "Bulk upload failed");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Bulk upload failed";
+      alert(message);
     } finally {
       setBulkUploading(false);
     }
