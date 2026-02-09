@@ -521,7 +521,7 @@ function IntegrationsPageContent() {
                                     : "Connect via OAuth (recommended)"}
                                 </button>
                                 <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                                  If Shopify says &quot;redirect_uri is not whitelisted&quot;, in your Shopify app go to <strong>Configuration</strong> → <strong>Allowed redirection URL(s)</strong> and add exactly: <code className="text-xs break-all">https://lacleoomnia.onrender.com/auth/shopify/callback</code> (no trailing slash).
+                                  If Shopify says &quot;redirect_uri is not whitelisted&quot;, in your Shopify app go to <strong>Configuration</strong> → <strong>Allowed redirection URL(s)</strong> and add exactly: <code className="text-xs break-all">https://lacleoomnia-api.onrender.com/auth/shopify/callback</code> (no trailing slash).
                                 </p>
                               </div>
                             )}
@@ -579,7 +579,7 @@ function IntegrationsPageContent() {
                           </div>
                         ))}
                         <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                          In Shopify, add this exact URL under <strong>Allowed redirection URL(s)</strong>: <code className="text-xs break-all">https://lacleoomnia.onrender.com/auth/shopify/callback</code>
+                          In Shopify, add this exact URL under <strong>Allowed redirection URL(s)</strong>: <code className="text-xs break-all">https://lacleoomnia-api.onrender.com/auth/shopify/callback</code>
                         </p>
                         <div className="flex gap-2">
                           <button

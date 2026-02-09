@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { authFetch, API_BASE_URL } from "@/utils/api";
+import { authFetch } from "@/utils/api";
 import { formatCurrency } from "@/utils/currency";
 import Link from "next/link";
 import { TablePagination } from "@/app/components/TablePagination";
@@ -157,16 +157,6 @@ export default function LabelsPage() {
     }
   };
 
-  const printLabel = (label: Label) => {
-    // Open backend label print endpoint (same origin as API)
-    window.open(`${API_BASE_URL}/labels/${label.id}/print`, "_blank");
-  };
-
-  const downloadInvoice = (orderId: string) => {
-    // Open backend invoice endpoint (same origin as API)
-    window.open(`${API_BASE_URL}/orders/${orderId}/invoice`, "_blank");
-  };
-
   const totalLabels = labels.length;
   const pendingLabels = labels.filter((l) => l.status === "PENDING").length;
   const shippedLabels = labels.filter((l) => l.status !== "PENDING").length;
@@ -178,6 +168,10 @@ export default function LabelsPage() {
     const start = (pageShipments - 1) * pageSizeShipments;
     return shipments.slice(start, start + pageSizeShipments);
   }, [shipments, pageShipments, pageSizeShipments]);
+
+  const shipmentByOrderId = useMemo(() => {
+    return new Map(shipments.map((s) => [s.orderId, s]));
+  }, [shipments]);
 
   return (
     <div className="space-y-6">
@@ -258,18 +252,36 @@ export default function LabelsPage() {
                   </td>
                   <td className="py-3 px-4">
                     <div className="flex items-center justify-center gap-2">
-                      <button
-                        onClick={() => printLabel(label)}
-                        className="text-blue-600 hover:text-blue-700 text-xs font-medium"
-                      >
-                        Print
-                      </button>
-                      <button
-                        onClick={() => downloadInvoice(label.orderId)}
-                        className="text-purple-600 hover:text-purple-700 text-xs font-medium"
-                      >
-                        Invoice
-                      </button>
+                      {(() => {
+                        const shipment = shipmentByOrderId.get(label.orderId);
+                        const labelUrl = shipment?.labelUrl;
+                        const trackingUrl = shipment?.trackingUrl;
+                        if (labelUrl) {
+                          return (
+                            <a
+                              href={labelUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-blue-600 hover:text-blue-700 text-xs font-medium"
+                            >
+                              Label
+                            </a>
+                          );
+                        }
+                        if (trackingUrl) {
+                          return (
+                            <a
+                              href={trackingUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-blue-600 hover:text-blue-700 text-xs font-medium"
+                            >
+                              Track
+                            </a>
+                          );
+                        }
+                        return <span className="text-slate-400 text-xs">No label</span>;
+                      })()}
                       <button
                         onClick={() => setSelectedLabel(label)}
                         className="text-slate-600 hover:text-slate-700 text-xs font-medium"
@@ -524,19 +536,39 @@ export default function LabelsPage() {
                   </p>
                 </div>
               </div>
-              <div className="flex gap-3 pt-4 border-t border-slate-200">
-                <button
-                  onClick={() => printLabel(selectedLabel)}
-                  className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-                >
-                  Print Label
-                </button>
-                <button
-                  onClick={() => downloadInvoice(selectedLabel.orderId)}
-                  className="flex-1 rounded-lg border border-blue-600 px-4 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50"
-                >
-                  Download Invoice
-                </button>
+              <div className="flex gap-3 pt-4 border-t border-slate-200 items-center">
+                {(() => {
+                  const shipment = shipmentByOrderId.get(selectedLabel.orderId);
+                  const labelUrl = shipment?.labelUrl;
+                  const trackingUrl = shipment?.trackingUrl;
+                  if (labelUrl) {
+                    return (
+                      <a
+                        href={labelUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 text-center"
+                      >
+                        Open Label
+                      </a>
+                    );
+                  }
+                  if (trackingUrl) {
+                    return (
+                      <a
+                        href={trackingUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex-1 rounded-lg border border-blue-600 px-4 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50 text-center"
+                      >
+                        Track Shipment
+                      </a>
+                    );
+                  }
+                  return (
+                    <span className="text-slate-500 text-sm">No label or tracking URL available.</span>
+                  );
+                })()}
               </div>
             </div>
           </div>
