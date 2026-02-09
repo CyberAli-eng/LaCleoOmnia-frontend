@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import Header from "./Header";
+import Header from "@/src/components/common/Header";
 
 export default function ConditionalLayout({
   children,
