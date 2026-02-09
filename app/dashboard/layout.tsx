@@ -9,6 +9,9 @@ import { authFetch } from "@/utils/api";
 const navItemsBase = [
   { href: "/dashboard", label: "Overview", icon: "📊" },
   { href: "/dashboard/orders", label: "Orders", icon: "📦" },
+  { href: "/dashboard/pnl", label: "Profit & Loss", icon: "💹" },
+  { href: "/dashboard/settlements", label: "Settlements", icon: "💸" },
+  { href: "/dashboard/risk", label: "Risk", icon: "⚠️" },
   { href: "/dashboard/inventory", label: "Inventory", icon: "📋" },
   { href: "/dashboard/costs", label: "SKU Costs", icon: "💰" },
   { href: "/dashboard/integrations", label: "Channels", icon: "🔌" },

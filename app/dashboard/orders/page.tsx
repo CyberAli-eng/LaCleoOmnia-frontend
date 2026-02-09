@@ -18,6 +18,10 @@ interface Order {
   status: string;
   createdAt: string;
   items?: OrderItem[];
+  profit?: number;
+  cashStatus?: 'PENDING' | 'CLEARED' | 'OVERDUE';
+  eta?: string | null;
+  riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
 }
 
 interface OrderItem {
@@ -307,6 +311,10 @@ export default function OrdersPage() {
                 <th className="text-left py-3 px-4 font-semibold text-slate-700">Customer</th>
                 <th className="text-left py-3 px-4 font-semibold text-slate-700">Payment</th>
                 <th className="text-right py-3 px-4 font-semibold text-slate-700">Total</th>
+                <th className="text-right py-3 px-4 font-semibold text-slate-700">Profit</th>
+                <th className="text-left py-3 px-4 font-semibold text-slate-700">Cash Status</th>
+                <th className="text-left py-3 px-4 font-semibold text-slate-700">ETA</th>
+                <th className="text-left py-3 px-4 font-semibold text-slate-700">Risk</th>
                 <th className="text-left py-3 px-4 font-semibold text-slate-700">Status</th>
                 <th className="text-left py-3 px-4 font-semibold text-slate-700">Date</th>
                 <th className="text-center py-3 px-4 font-semibold text-slate-700">Actions</th>
@@ -343,6 +351,46 @@ export default function OrdersPage() {
                   <td className="py-3 px-4">{getPaymentBadge(order.paymentMode)}</td>
                   <td className="py-3 px-4 text-right font-semibold text-slate-900">
                     ${order.orderTotal.toFixed(2)}
+                  </td>
+                  <td className="py-3 px-4 text-right">
+                    {order.profit !== undefined ? (
+                      <span className={`font-semibold ${
+                        order.profit >= 0 ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        ${order.profit.toFixed(2)}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </td>
+                  <td className="py-3 px-4">
+                    {order.cashStatus ? (
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        order.cashStatus === 'CLEARED' ? 'bg-green-50 text-green-700' :
+                        order.cashStatus === 'PENDING' ? 'bg-yellow-50 text-yellow-700' :
+                        'bg-red-50 text-red-700'
+                      }`}>
+                        {order.cashStatus}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </td>
+                  <td className="py-3 px-4 text-slate-600">
+                    {order.eta || '—'}
+                  </td>
+                  <td className="py-3 px-4">
+                    {order.riskLevel ? (
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        order.riskLevel === 'LOW' ? 'bg-green-50 text-green-700' :
+                        order.riskLevel === 'MEDIUM' ? 'bg-yellow-50 text-yellow-700' :
+                        'bg-red-50 text-red-700'
+                      }`}>
+                        {order.riskLevel}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
                   </td>
                   <td className="py-3 px-4">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>

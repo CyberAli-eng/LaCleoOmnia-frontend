@@ -37,13 +37,26 @@ export default function DashboardPage() {
 
   const loadDashboard = async () => {
     try {
-      const [overviewRes, profitRes, syncJobs] = await Promise.all([
+      const [overviewRes, profitRes, financeRes, syncJobs] = await Promise.all([
         authFetch("/analytics/overview").catch(() => null),
         authFetch("/analytics/profit-summary").catch(() => null),
+        authFetch("/api/finance/overview").catch(() => null),
         authFetch("/workers").catch(() => []),
       ]);
       setOverview(overviewRes || null);
       setProfitSummary(profitRes || null);
+      
+      // Update overview with financial data
+      if (financeRes) {
+        setOverview(prev => ({
+          ...prev,
+          ...overviewRes,
+          cashPending: financeRes.cashPending || 0,
+          rtoLoss: financeRes.rtoLoss || 0,
+          netProfit: financeRes.netProfit || 0,
+        }));
+      }
+      
       const jobs = Array.isArray(syncJobs) ? syncJobs : (syncJobs as { jobs?: any[] })?.jobs || [];
       if (jobs.length > 0) {
         const last = jobs.sort((a: any, b: any) => {
@@ -109,7 +122,7 @@ export default function DashboardPage() {
         <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-4">
           Revenue & orders
         </h2>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
           <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
             <p className="text-xs font-medium text-slate-500">Revenue today</p>
             <p className="mt-1 text-2xl font-bold text-slate-900">
@@ -139,11 +152,22 @@ export default function DashboardPage() {
             <p className="mt-1 text-2xl font-bold text-slate-900">{o.todayItems}</p>
             <p className="mt-1 text-xs text-slate-500">Yesterday: {o.yesterdayItems} items</p>
           </div>
+          <div className={`rounded-xl border border-slate-100 p-4 ${
+            (o as any).netProfit >= 0 ? 'bg-green-50' : 'bg-red-50'
+          }`}>
+            <p className="text-xs font-medium text-slate-500">Net profit</p>
+            <p className={`mt-1 text-2xl font-bold ${
+              (o as any).netProfit >= 0 ? 'text-green-700' : 'text-red-700'
+            }`}>
+              {formatCurrency((o as any).netProfit || 0)}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">Today's profit</p>
+          </div>
         </div>
       </div>
 
       {/* Section 2: Alert grids (Unicommerce Section 2) */}
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-4">
         {/* Order alerts */}
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-3">
@@ -166,6 +190,33 @@ export default function DashboardPage() {
               <span className="text-sm font-medium text-blue-800">Pending shipment</span>
               <span className="text-xl font-bold text-blue-700">
                 {o.orderAlerts.pendingShipment}
+              </span>
+            </Link>
+          </div>
+        </div>
+
+        {/* Financial alerts */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-3">
+            Financial alerts
+          </h2>
+          <div className="space-y-3">
+            <Link
+              href="/dashboard/settlements"
+              className="flex items-center justify-between rounded-xl border border-yellow-200 bg-yellow-50/80 px-4 py-3 transition-colors hover:bg-yellow-50"
+            >
+              <span className="text-sm font-medium text-yellow-800">Cash pending</span>
+              <span className="text-xl font-bold text-yellow-700">
+                {formatCurrency((o as any).cashPending || 0)}
+              </span>
+            </Link>
+            <Link
+              href="/dashboard/risk"
+              className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50/80 px-4 py-3 transition-colors hover:bg-red-50"
+            >
+              <span className="text-sm font-medium text-red-800">RTO loss</span>
+              <span className="text-xl font-bold text-red-700">
+                {formatCurrency((o as any).rtoLoss || 0)}
               </span>
             </Link>
           </div>
