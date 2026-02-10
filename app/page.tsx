@@ -135,7 +135,7 @@ export default function LandingPage() {
             {isLoggedIn ? "Head back to your dashboard to manage orders and profit." : "Connect your store and logistics. Get started in minutes."}
           </p>
           <div className="mt-6">
-            {mounted && isLoggedIn ? (
+            {isClient && isLoggedIn ? (
               <Link
                 href="/dashboard"
                 className="inline-flex items-center rounded-lg bg-blue-600 px-6 py-3 text-base font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"

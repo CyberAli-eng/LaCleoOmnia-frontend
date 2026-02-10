@@ -47,22 +47,29 @@ export default function PnLPage() {
   const [pnlData, setPnLData] = useState<PnLBreakdown | null>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
+  const [channel, setChannel] = useState("");
+  const [sku, setSku] = useState("");
+  const [courier, setCourier] = useState("");
+  const [payment, setPayment] = useState("");
   const [drilldownOpen, setDrilldownOpen] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState<PnLData | null>(null);
 
   const loadPnLData = useCallback(async () => {
     setLoading(true);
     try {
-      // Backend finance API is under /api, and API_BASE_URL already includes /api,
-      // so we only pass the relative path here.
-      const data = await authFetch(`/finance/pnl?period=${period}`);
+      const params = new URLSearchParams({ period });
+      if (channel.trim()) params.set("channel", channel.trim());
+      if (sku.trim()) params.set("sku", sku.trim());
+      if (courier.trim()) params.set("courier", courier.trim());
+      if (payment.trim()) params.set("payment", payment.trim());
+      const data = await authFetch(`/finance/pnl?${params.toString()}`);
       setPnLData(data);
     } catch (err) {
       console.error("Failed to load P&L data:", err);
     } finally {
       setLoading(false);
     }
-  }, [period]);
+  }, [period, channel, sku, courier, payment]);
 
   useEffect(() => {
     loadPnLData();
@@ -97,12 +104,12 @@ export default function PnLPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Profit & Loss</h1>
           <p className="mt-1 text-sm text-slate-600">Financial performance and profitability analysis</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {(['7d', '30d', '90d', '1y'] as const).map((p) => (
             <button
               key={p}
@@ -116,6 +123,82 @@ export default function PnLPage() {
               {p === '7d' ? '7 Days' : p === '30d' ? '30 Days' : p === '90d' ? '90 Days' : '1 Year'}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => {
+              const headers = ["Period", "Revenue", "Expenses", "Profit", "Margin", "Orders", "AOV"];
+              const rows = data.periodData.map((p) =>
+                [p.period, p.revenue, p.expenses, p.profit, p.margin, p.orderCount, p.avgOrderValue].join(",")
+              );
+              const csv = [headers.join(","), ...rows].join("\n");
+              const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `pnl-${period}-${new Date().toISOString().slice(0, 10)}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-slate-100 text-slate-700 hover:bg-slate-200"
+          >
+            Export CSV
+          </button>
+        </div>
+      </div>
+
+      {/* Filters: Date, Channel, SKU, Courier, Payment */}
+      <div className="bg-white rounded-lg border border-slate-200 p-4">
+        <p className="text-xs font-semibold text-slate-500 uppercase mb-3">Filters</p>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div>
+            <label className="block text-xs text-slate-500 mb-1">Channel</label>
+            <input
+              type="text"
+              placeholder="Channel"
+              value={channel}
+              onChange={(e) => setChannel(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-slate-500 mb-1">SKU</label>
+            <input
+              type="text"
+              placeholder="SKU"
+              value={sku}
+              onChange={(e) => setSku(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-slate-500 mb-1">Courier</label>
+            <input
+              type="text"
+              placeholder="Courier"
+              value={courier}
+              onChange={(e) => setCourier(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-slate-500 mb-1">Payment</label>
+            <input
+              type="text"
+              placeholder="COD / Prepaid"
+              value={payment}
+              onChange={(e) => setPayment(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            />
+          </div>
+          <div className="flex items-end">
+            <button
+              type="button"
+              onClick={() => loadPnLData()}
+              className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              Apply filters
+            </button>
+          </div>
         </div>
       </div>
 

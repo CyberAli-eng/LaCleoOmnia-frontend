@@ -4,6 +4,39 @@ import { useEffect, useState } from "react";
 import { authFetch } from "@/utils/api";
 import { formatCurrency } from "@/utils/currency";
 import Link from "next/link";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  Legend,
+} from "recharts";
+import { useFinancePolling } from "./useFinancePolling";
+
+interface FinanceOverview {
+  revenue?: number;
+  netProfit?: number;
+  loss?: number;
+  rtoPercent?: number;
+  cashPending?: number;
+  codPercent?: number;
+  profitLossLine?: Array<{ period: string; profit: number; revenue?: number }>;
+  settledVsPending?: Array<{ period: string; settled: number; pending: number }>;
+  codVsPrepaid?: Array<{ period: string; cod: number; prepaid: number }>;
+  recentOrders?: Array<{
+    id: string;
+    externalId?: string;
+    source?: string;
+    status?: string;
+    total?: number;
+    createdAt?: string | null;
+  }>;
+}
 
 interface Overview {
   todayRevenue: number;
@@ -28,11 +61,6 @@ interface Overview {
   }>;
 }
 
-interface ProfitSummary {
-  netProfit?: number;
-  marginPercent?: number;
-}
-
 interface SyncJob {
   finishedAt?: string;
   startedAt?: string;
@@ -40,37 +68,20 @@ interface SyncJob {
 }
 
 export default function DashboardPage() {
-  const [overview, setOverview] = useState<Overview | null>(null);
-  const [profitSummary, setProfitSummary] = useState<ProfitSummary | null>(null);
+  const [financeOverview, setFinanceOverview] = useState<FinanceOverview | null>(null);
+  const [legacyOverview, setLegacyOverview] = useState<Overview | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastSync, setLastSync] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadDashboard();
-  }, []);
-
   const loadDashboard = async () => {
     try {
-      const [overviewRes, profitRes, financeRes, syncJobs] = await Promise.all([
+      const [financeRes, overviewRes, syncJobs] = await Promise.all([
+        authFetch("/finance/overview").catch(() => null),
         authFetch("/analytics/overview").catch(() => null),
-        authFetch("/analytics/profit-summary").catch(() => null),
-        authFetch("/api/finance/overview").catch(() => null),
         authFetch("/workers").catch(() => []),
       ]);
-      setOverview(overviewRes || null);
-      setProfitSummary(profitRes || null);
-      
-      // Update overview with financial data
-      if (financeRes) {
-        setOverview(prev => ({
-          ...prev,
-          ...overviewRes,
-          cashPending: financeRes.cashPending || 0,
-          rtoLoss: financeRes.rtoLoss || 0,
-          netProfit: financeRes.netProfit || 0,
-        }));
-      }
-      
+      setFinanceOverview((financeRes as FinanceOverview) || null);
+      setLegacyOverview((overviewRes as Overview) || null);
       const jobs = Array.isArray(syncJobs) ? (syncJobs as SyncJob[]) : (syncJobs as { jobs?: SyncJob[] })?.jobs || [];
       if (jobs.length > 0) {
         const last = jobs.sort((a, b) => {
@@ -87,6 +98,12 @@ export default function DashboardPage() {
     }
   };
 
+  useEffect(() => {
+    loadDashboard();
+  }, []);
+
+  useFinancePolling(loadDashboard, true);
+
   if (loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
@@ -95,7 +112,8 @@ export default function DashboardPage() {
     );
   }
 
-  const o = overview || {
+  const fo = financeOverview || {};
+  const lo = legacyOverview || {
     todayRevenue: 0,
     yesterdayRevenue: 0,
     todayOrders: 0,
@@ -107,280 +125,174 @@ export default function DashboardPage() {
     channelAlerts: { connectedCount: 0 },
     recentOrders: [],
   };
-
-  const revenueUp = o.todayRevenue >= (o.yesterdayRevenue || 0);
-  const ordersUp = o.todayOrders >= (o.yesterdayOrders || 0);
+  const revenue = fo.revenue ?? lo.todayRevenue ?? 0;
+  const netProfit = fo.netProfit ?? lo.netProfit ?? 0;
+  const loss = fo.loss ?? lo.rtoLoss ?? 0;
+  const rtoPercent = fo.rtoPercent ?? 0;
+  const cashPending = fo.cashPending ?? lo.cashPending ?? 0;
+  const codPercent = fo.codPercent ?? 0;
+  const recentOrders = fo.recentOrders ?? lo.recentOrders ?? [];
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Overview</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            Orders, inventory, and channel status at a glance
-          </p>
+          <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+          <p className="mt-1 text-sm text-slate-600">Profit & cashflow at a glance</p>
         </div>
         {lastSync && (
           <div className="text-right">
             <p className="text-xs text-slate-500">Last sync</p>
-            <p className="text-sm font-medium text-slate-700">
-              {new Date(lastSync).toLocaleString()}
-            </p>
+            <p className="text-sm font-medium text-slate-700">{new Date(lastSync).toLocaleString()}</p>
           </div>
         )}
       </div>
 
-      {/* Section 1: Revenue & Orders (Unicommerce Section 1) */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-4">
-          Revenue & orders
-        </h2>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
-          <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-            <p className="text-xs font-medium text-slate-500">Revenue today</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">
-              {formatCurrency(o.todayRevenue)}
-            </p>
-            <p className={`mt-1 text-xs ${revenueUp ? "text-emerald-600" : "text-slate-500"}`}>
-              {o.yesterdayRevenue != null
-                ? `Yesterday: ${formatCurrency(o.yesterdayRevenue)}`
-                : "—"}
-            </p>
-          </div>
-          <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-            <p className="text-xs font-medium text-slate-500">Revenue yesterday</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">
-              {formatCurrency(o.yesterdayRevenue)}
-            </p>
-          </div>
-          <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-            <p className="text-xs font-medium text-slate-500">Orders today</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">{o.todayOrders}</p>
-            <p className={`mt-1 text-xs ${ordersUp ? "text-emerald-600" : "text-slate-500"}`}>
-              Yesterday: {o.yesterdayOrders} orders · {o.todayItems} items today
-            </p>
-          </div>
-          <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-            <p className="text-xs font-medium text-slate-500">Items sold today</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">{o.todayItems}</p>
-            <p className="mt-1 text-xs text-slate-500">Yesterday: {o.yesterdayItems} items</p>
-          </div>
-          <div className={`rounded-xl border border-slate-100 p-4 ${
-            (o.netProfit ?? 0) >= 0 ? "bg-green-50" : "bg-red-50"
-          }`}>
-            <p className="text-xs font-medium text-slate-500">Net profit</p>
-            <p className={`mt-1 text-2xl font-bold ${
-              (o.netProfit ?? 0) >= 0 ? "text-green-700" : "text-red-700"
-            }`}>
-              {formatCurrency(o.netProfit ?? 0)}
-            </p>
-            <p className="mt-1 text-xs text-slate-500">Today&apos;s profit</p>
-          </div>
-        </div>
+      {/* Phase B: KPI cards — every ₹ clickable */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+        <Link
+          href="/dashboard/orders"
+          className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm hover:border-slate-300 transition-colors"
+        >
+          <p className="text-xs font-medium text-slate-500">Revenue</p>
+          <p className="mt-2 text-xl font-bold text-slate-900">{formatCurrency(revenue)}</p>
+        </Link>
+        <Link
+          href="/dashboard/pnl"
+          className={`rounded-xl border p-5 shadow-sm transition-colors ${
+            netProfit >= 0 ? "border-green-200 bg-green-50 hover:border-green-300" : "border-red-200 bg-red-50 hover:border-red-300"
+          }`}
+        >
+          <p className="text-xs font-medium text-slate-500">Net Profit</p>
+          <p className={`mt-2 text-xl font-bold ${netProfit >= 0 ? "text-green-700" : "text-red-700"}`}>
+            {formatCurrency(netProfit)}
+          </p>
+        </Link>
+        <Link
+          href="/dashboard/risk"
+          className="rounded-xl border border-red-200 bg-red-50/80 p-5 shadow-sm hover:border-red-300 transition-colors"
+        >
+          <p className="text-xs font-medium text-red-800">Loss</p>
+          <p className="mt-2 text-xl font-bold text-red-700">{formatCurrency(loss)}</p>
+        </Link>
+        <Link
+          href="/dashboard/logistics"
+          className="rounded-xl border border-amber-200 bg-amber-50/80 p-5 shadow-sm hover:border-amber-300 transition-colors"
+        >
+          <p className="text-xs font-medium text-amber-800">RTO %</p>
+          <p className="mt-2 text-xl font-bold text-amber-700">{Number(rtoPercent).toFixed(1)}%</p>
+        </Link>
+        <Link
+          href="/dashboard/settlements"
+          className="rounded-xl border border-yellow-200 bg-yellow-50/80 p-5 shadow-sm hover:border-yellow-300 transition-colors"
+        >
+          <p className="text-xs font-medium text-yellow-800">Cash Pending</p>
+          <p className="mt-2 text-xl font-bold text-yellow-700">{formatCurrency(cashPending)}</p>
+        </Link>
+        <Link
+          href="/dashboard/orders?payment=COD"
+          className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm hover:border-slate-300 transition-colors"
+        >
+          <p className="text-xs font-medium text-slate-500">COD %</p>
+          <p className="mt-2 text-xl font-bold text-slate-900">{Number(codPercent).toFixed(1)}%</p>
+        </Link>
       </div>
 
-      {/* Section 2: Alert grids (Unicommerce Section 2) */}
-      <div className="grid gap-6 lg:grid-cols-4">
-        {/* Order alerts */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-3">
-            Order alerts
-          </h2>
-          <div className="space-y-3">
-            <Link
-              href="/dashboard/orders?status=NEW"
-              className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 transition-colors hover:bg-amber-50"
-            >
-              <span className="text-sm font-medium text-amber-800">Pending orders</span>
-              <span className="text-xl font-bold text-amber-700">
-                {o.orderAlerts.pendingOrders}
-              </span>
-            </Link>
-            <Link
-              href="/dashboard/orders?status=PACKED"
-              className="flex items-center justify-between rounded-xl border border-blue-200 bg-blue-50/80 px-4 py-3 transition-colors hover:bg-blue-50"
-            >
-              <span className="text-sm font-medium text-blue-800">Pending shipment</span>
-              <span className="text-xl font-bold text-blue-700">
-                {o.orderAlerts.pendingShipment}
-              </span>
-            </Link>
-          </div>
-        </div>
-
-        {/* Financial alerts */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-3">
-            Financial alerts
-          </h2>
-          <div className="space-y-3">
-            <Link
-              href="/dashboard/settlements"
-              className="flex items-center justify-between rounded-xl border border-yellow-200 bg-yellow-50/80 px-4 py-3 transition-colors hover:bg-yellow-50"
-            >
-              <span className="text-sm font-medium text-yellow-800">Cash pending</span>
-              <span className="text-xl font-bold text-yellow-700">
-                {formatCurrency(o.cashPending ?? 0)}
-              </span>
-            </Link>
-            <Link
-              href="/dashboard/risk"
-              className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50/80 px-4 py-3 transition-colors hover:bg-red-50"
-            >
-              <span className="text-sm font-medium text-red-800">RTO loss</span>
-              <span className="text-xl font-bold text-red-700">
-                {formatCurrency(o.rtoLoss ?? 0)}
-              </span>
-            </Link>
-          </div>
-        </div>
-
-        {/* Product alerts */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-3">
-            Product alerts
-          </h2>
-          <div className="space-y-3">
-            <Link
-              href="/dashboard/inventory"
-              className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50/80 px-4 py-3 transition-colors hover:bg-red-50"
-            >
-              <span className="text-sm font-medium text-red-800">Low stock items</span>
-              <span className="text-xl font-bold text-red-700">
-                {o.productAlerts.lowStockCount}
-              </span>
-            </Link>
-            <p className="text-xs text-slate-500 px-1">
-              Items with available qty &lt; 10
-            </p>
-          </div>
-        </div>
-
-        {/* Channel alerts */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-3">
-            Channel connectors
-          </h2>
-          <div className="space-y-3">
-            <Link
-              href="/dashboard/integrations"
-              className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 transition-colors hover:bg-emerald-50"
-            >
-              <span className="text-sm font-medium text-emerald-800">Connected</span>
-              <span className="text-xl font-bold text-emerald-700">
-                {o.channelAlerts.connectedCount}
-              </span>
-            </Link>
-            <Link
-              href="/dashboard/integrations"
-              className="block rounded-lg border border-slate-200 px-4 py-2 text-center text-sm font-medium text-slate-700 hover:bg-slate-50"
-            >
-              Configure channels
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Section 3: Updates + Recent orders + Quick actions (Unicommerce Section 3 + content) */}
+      {/* Charts */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Recent orders */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
+        {(fo.profitLossLine?.length ?? 0) > 0 && (
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
+            <h2 className="text-sm font-semibold text-slate-700 mb-4">Profit / Loss trend</h2>
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={fo.profitLossLine}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="period" tick={{ fontSize: 11 }} stroke="#64748b" />
+                <YAxis tick={{ fontSize: 11 }} stroke="#64748b" tickFormatter={(v) => `${v}`} />
+                <Tooltip formatter={(v: number) => [formatCurrency(v), ""]} />
+                <Line type="monotone" dataKey="profit" stroke="#10b981" strokeWidth={2} name="Profit" dot={{ r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+        {(fo.settledVsPending?.length ?? 0) > 0 && (
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-sm font-semibold text-slate-700 mb-4">Settled vs Pending</h2>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={fo.settledVsPending} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="period" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}`} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="settled" fill="#10b981" name="Settled" />
+                <Bar dataKey="pending" fill="#eab308" name="Pending" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+        {(fo.codVsPrepaid?.length ?? 0) > 0 && (
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-sm font-semibold text-slate-700 mb-4">COD vs Prepaid</h2>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={fo.codVsPrepaid} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="period" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}`} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="cod" fill="#f59e0b" name="COD" />
+                <Bar dataKey="prepaid" fill="#3b82f6" name="Prepaid" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+
+      {/* Alerts + Recent orders */}
+      <div className="grid gap-6 lg:grid-cols-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-sm font-semibold text-slate-500 mb-3">Alerts</h2>
+          <div className="space-y-2">
+            <Link href="/dashboard/orders?status=NEW" className="flex justify-between rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-sm hover:bg-amber-50">
+              <span className="text-amber-800">Pending orders</span>
+              <span className="font-bold text-amber-700">{lo.orderAlerts.pendingOrders}</span>
+            </Link>
+            <Link href="/dashboard/settlements" className="flex justify-between rounded-lg border border-yellow-200 bg-yellow-50/80 px-3 py-2 text-sm hover:bg-yellow-50">
+              <span className="text-yellow-800">Cash pending</span>
+              <span className="font-bold text-yellow-700">{formatCurrency(cashPending)}</span>
+            </Link>
+            <Link href="/dashboard/risk" className="flex justify-between rounded-lg border border-red-200 bg-red-50/80 px-3 py-2 text-sm hover:bg-red-50">
+              <span className="text-red-800">RTO loss</span>
+              <span className="font-bold text-red-700">{formatCurrency(loss)}</span>
+            </Link>
+          </div>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-3">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-slate-900">Recent orders</h2>
-            <Link
-              href="/dashboard/orders"
-              className="text-sm font-medium text-blue-600 hover:text-blue-500"
-            >
-              View all →
-            </Link>
+            <Link href="/dashboard/orders" className="text-sm font-medium text-blue-600 hover:text-blue-500">View all →</Link>
           </div>
           <div className="space-y-2">
-            {(o.recentOrders || []).slice(0, 8).map((order) => (
-              <div
+            {recentOrders.slice(0, 8).map((order) => (
+              <Link
                 key={order.id}
+                href={`/dashboard/orders/${order.id}`}
                 className="flex items-center justify-between rounded-lg border border-slate-100 py-2.5 px-3 hover:bg-slate-50"
               >
                 <div>
-                  <p className="text-sm font-medium text-slate-900">
-                    #{order.externalId || order.id}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {order.source} · {order.status}
-                  </p>
+                  <p className="text-sm font-medium text-slate-900">#{order.externalId || order.id}</p>
+                  <p className="text-xs text-slate-500">{order.source ?? ""} · {order.status ?? ""}</p>
                 </div>
-                <p className="text-sm font-semibold text-slate-900">
-                  {formatCurrency(order.total)}
-                </p>
-              </div>
+                <p className="text-sm font-semibold text-slate-900">{formatCurrency(order.total ?? 0)}</p>
+              </Link>
             ))}
-            {(!o.recentOrders || o.recentOrders.length === 0) && (
+            {recentOrders.length === 0 && (
               <div className="rounded-lg border border-dashed border-slate-200 py-8 text-center text-slate-500">
                 <p className="text-sm">No orders yet</p>
-                <Link
-                  href="/dashboard/integrations"
-                  className="mt-2 inline-block text-sm font-medium text-blue-600 hover:text-blue-500"
-                >
-                  Connect a channel & sync orders
-                </Link>
+                <Link href="/dashboard/integrations" className="mt-2 inline-block text-sm font-medium text-blue-600 hover:text-blue-500">Connect a channel</Link>
               </div>
             )}
           </div>
-        </div>
-
-        {/* Resources / Quick actions */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-4">
-            Quick actions
-          </h2>
-          <div className="space-y-2">
-            <Link
-              href="/dashboard/integrations"
-              className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-            >
-              <span className="text-lg">🔌</span>
-              <span>Configure channels</span>
-            </Link>
-            <Link
-              href="/dashboard/orders"
-              className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-            >
-              <span className="text-lg">📦</span>
-              <span>Orders</span>
-            </Link>
-            <Link
-              href="/dashboard/inventory"
-              className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-            >
-              <span className="text-lg">📋</span>
-              <span>Inventory</span>
-            </Link>
-            <Link
-              href="/dashboard/workers"
-              className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-            >
-              <span className="text-lg">⚙️</span>
-              <span>Sync & workers</span>
-            </Link>
-            <Link
-              href="/dashboard/analytics"
-              className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-            >
-              <span className="text-lg">📈</span>
-              <span>Analytics</span>
-            </Link>
-          </div>
-          {(profitSummary?.netProfit != null || profitSummary?.marginPercent != null) && (
-            <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50/50 p-4">
-              <p className="text-xs font-medium text-slate-500">Profit summary</p>
-              <p className={`mt-1 text-lg font-bold ${(profitSummary?.netProfit ?? 0) >= 0 ? "text-slate-900" : "text-red-600"}`}>
-                {formatCurrency(profitSummary?.netProfit ?? 0)}
-              </p>
-              <p className="text-xs text-slate-500">
-                Margin {(profitSummary?.marginPercent ?? 0).toFixed(1)}%
-              </p>
-            </div>
-          )}
         </div>
       </div>
     </div>

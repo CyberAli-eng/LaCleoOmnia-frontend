@@ -53,7 +53,7 @@ export default function RiskPage() {
   const loadRiskData = async () => {
     setLoading(true);
     try {
-      const data = await authFetch("/api/finance/risk");
+      const data = await authFetch("/finance/risk");
       setCustomers(data.customers || []);
       setSummary(data.summary || null);
     } catch (err) {
@@ -255,16 +255,16 @@ export default function RiskPage() {
                   <td className="py-3 px-6 text-right">
                     <div>
                       <p className="font-medium text-slate-900">{customer.totalOrders}</p>
-                      <p className="text-xs text-slate-500">{customer.successOrders} success</p>
+                      <p className="text-xs text-slate-500">{customer.successfulOrders ?? customer.totalOrders} success</p>
                     </div>
                   </td>
                   <td className="py-3 px-6 text-right">
                     <span className={`font-medium ${
-                      (customer.successOrders / customer.totalOrders) >= 0.9 ? 'text-green-600' :
-                      (customer.successOrders / customer.totalOrders) >= 0.7 ? 'text-yellow-600' :
+                      ((customer.successfulOrders ?? 0) / (customer.totalOrders || 1)) >= 0.9 ? 'text-green-600' :
+                      ((customer.successfulOrders ?? 0) / (customer.totalOrders || 1)) >= 0.7 ? 'text-yellow-600' :
                       'text-red-600'
                     }`}>
-                      {((customer.successOrders / customer.totalOrders) * 100).toFixed(1)}%
+                      {(((customer.successfulOrders ?? 0) / (customer.totalOrders || 1)) * 100).toFixed(1)}%
                     </span>
                   </td>
                   <td className="py-3 px-6 text-right font-semibold text-slate-900">
@@ -360,11 +360,11 @@ export default function RiskPage() {
                 <div className="bg-slate-50 rounded-lg p-4">
                   <p className="text-sm text-slate-500">Success Rate</p>
                   <p className={`text-lg font-bold mt-1 ${
-                    (selectedCustomer.successOrders / selectedCustomer.totalOrders) >= 0.9 ? 'text-green-600' :
-                    (selectedCustomer.successOrders / selectedCustomer.totalOrders) >= 0.7 ? 'text-yellow-600' :
+                    ((selectedCustomer.successfulOrders ?? 0) / (selectedCustomer.totalOrders || 1)) >= 0.9 ? 'text-green-600' :
+                    ((selectedCustomer.successfulOrders ?? 0) / (selectedCustomer.totalOrders || 1)) >= 0.7 ? 'text-yellow-600' :
                     'text-red-600'
                   }`}>
-                    {((selectedCustomer.successOrders / selectedCustomer.totalOrders) * 100).toFixed(1)}%
+                    {(((selectedCustomer.successfulOrders ?? 0) / (selectedCustomer.totalOrders || 1)) * 100).toFixed(1)}%
                   </p>
                 </div>
               </div>
@@ -412,6 +412,22 @@ export default function RiskPage() {
                   </div>
                 </div>
               </div>
+
+              {/* COD block suggestion — Phase H */}
+              {selectedCustomer.riskLevel === "HIGH" && (
+                <div className="rounded-lg border-2 border-amber-200 bg-amber-50 p-4">
+                  <h4 className="text-base font-semibold text-amber-800 mb-2">COD block suggestion</h4>
+                  <p className="text-sm text-amber-800">
+                    This customer has high RTO/failure rate. Consider blocking COD for future orders to reduce loss.
+                  </p>
+                  <button
+                    type="button"
+                    className="mt-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-700"
+                  >
+                    Block COD for this customer
+                  </button>
+                </div>
+              )}
 
               {/* Issues History */}
               <div>

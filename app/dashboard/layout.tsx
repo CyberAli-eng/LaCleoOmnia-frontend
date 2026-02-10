@@ -6,12 +6,16 @@ import { useRouter, usePathname } from "next/navigation";
 import { getCookie, deleteCookie, setCookie } from "@/utils/cookies";
 import { authFetch } from "@/utils/api";
 
+// Core finance CRM nav (Phase A)
 const navItemsBase = [
-  { href: "/dashboard", label: "Overview", icon: "📊" },
+  { href: "/dashboard", label: "Dashboard", icon: "📊" },
   { href: "/dashboard/orders", label: "Orders", icon: "📦" },
   { href: "/dashboard/pnl", label: "Profit & Loss", icon: "💹" },
   { href: "/dashboard/settlements", label: "Settlements", icon: "💸" },
-  { href: "/dashboard/risk", label: "Risk", icon: "⚠️" },
+  { href: "/dashboard/ads", label: "Ads", icon: "📢" },
+  { href: "/dashboard/logistics", label: "Logistics", icon: "🚚" },
+  { href: "/dashboard/risk", label: "Customers", icon: "👥" },
+  { href: "/dashboard/settings", label: "Settings", icon: "⚙️" },
   { href: "/dashboard/inventory", label: "Inventory", icon: "📋" },
   { href: "/dashboard/costs", label: "SKU Costs", icon: "💰" },
   { href: "/dashboard/integrations", label: "Channels", icon: "🔌" },

@@ -46,7 +46,7 @@ export default function SettlementsPage() {
   const loadSettlements = async () => {
     setLoading(true);
     try {
-      const data = await authFetch("/api/finance/settlements");
+      const data = await authFetch("/finance/settlements");
       setSettlements(data.settlements || []);
       setSummary(data.summary || null);
     } catch (err) {

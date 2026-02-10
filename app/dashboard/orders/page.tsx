@@ -57,10 +57,26 @@ export default function OrdersPage() {
   const [pageSize, setPageSize] = useState(10);
   const [pageShopify, setPageShopify] = useState(1);
   const [pageSizeShopify, setPageSizeShopify] = useState(10);
+  const [financeDrawerOrderId, setFinanceDrawerOrderId] = useState<string | null>(null);
+  const [financeOrderDetail, setFinanceOrderDetail] = useState<Record<string, unknown> | null>(null);
+  const [financeDrawerLoading, setFinanceDrawerLoading] = useState(false);
 
   useEffect(() => {
     loadOrders();
   }, []);
+
+  useEffect(() => {
+    if (!financeDrawerOrderId) {
+      setFinanceOrderDetail(null);
+      return;
+    }
+    setFinanceDrawerLoading(true);
+    setFinanceOrderDetail(null);
+    authFetch(`/finance/orders/${financeDrawerOrderId}`)
+      .then((data) => setFinanceOrderDetail(data as Record<string, unknown>))
+      .catch(() => setFinanceOrderDetail(null))
+      .finally(() => setFinanceDrawerLoading(false));
+  }, [financeDrawerOrderId]);
 
   // Reset to first page when filters change
   useEffect(() => {
@@ -351,14 +367,14 @@ export default function OrdersPage() {
                   </td>
                   <td className="py-3 px-4">{getPaymentBadge(order.paymentMode)}</td>
                   <td className="py-3 px-4 text-right font-semibold text-slate-900">
-                    ${order.orderTotal.toFixed(2)}
+                    {formatCurrency(order.orderTotal)}
                   </td>
                   <td className="py-3 px-4 text-right">
                     {order.profit !== undefined ? (
                       <span className={`font-semibold ${
                         order.profit >= 0 ? 'text-green-600' : 'text-red-600'
                       }`}>
-                        ${order.profit.toFixed(2)}
+                        {formatCurrency(order.profit)}
                       </span>
                     ) : (
                       <span className="text-slate-400">—</span>
@@ -408,6 +424,13 @@ export default function OrdersPage() {
                         className="text-blue-600 hover:text-blue-700 text-xs font-medium"
                       >
                         View
+                      </button>
+                      <button
+                        onClick={() => setFinanceDrawerOrderId(order.id)}
+                        className="text-slate-600 hover:text-slate-700 text-xs font-medium"
+                        title="Finance detail"
+                      >
+                        Finance
                       </button>
                       {canConfirm(order) && (
                         <button
@@ -606,6 +629,94 @@ export default function OrdersPage() {
                     ))}
                   </div>
                 </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Finance order drawer — Phase C: GET /finance/orders/{id} */}
+      {financeDrawerOrderId && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end justify-center z-50 sm:items-center sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl">
+            <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-slate-900">Finance · Order #{financeDrawerOrderId.slice(0, 8)}</h3>
+              <button
+                onClick={() => setFinanceDrawerOrderId(null)}
+                className="text-slate-400 hover:text-slate-600 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-6 space-y-6">
+              {financeDrawerLoading && (
+                <div className="text-slate-500 py-8 text-center">Loading finance detail…</div>
+              )}
+              {!financeDrawerLoading && !financeOrderDetail && (
+                <div className="text-slate-500 py-8 text-center">Finance data not available for this order.</div>
+              )}
+              {!financeDrawerLoading && financeOrderDetail && (
+                <>
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-700 mb-2">1️⃣ Summary</h4>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      {financeOrderDetail.revenue != null && (
+                        <div className="bg-slate-50 rounded-lg p-3">
+                          <p className="text-slate-500">Revenue</p>
+                          <p className="font-semibold text-slate-900">{formatCurrency(Number(financeOrderDetail.revenue))}</p>
+                        </div>
+                      )}
+                      {financeOrderDetail.netProfit != null && (
+                        <div className={`rounded-lg p-3 ${Number(financeOrderDetail.netProfit) >= 0 ? "bg-green-50" : "bg-red-50"}`}>
+                          <p className="text-slate-500">Net Profit</p>
+                          <p className={`font-semibold ${Number(financeOrderDetail.netProfit) >= 0 ? "text-green-700" : "text-red-700"}`}>
+                            {formatCurrency(Number(financeOrderDetail.netProfit))}
+                          </p>
+                        </div>
+                      )}
+                      {financeOrderDetail.status != null && (
+                        <div className="bg-slate-50 rounded-lg p-3">
+                          <p className="text-slate-500">Status</p>
+                          <p className="font-medium text-slate-900">{String(financeOrderDetail.status)}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {(financeOrderDetail.expenseBreakdown || (financeOrderDetail as { expenses?: unknown }).expenses) && (
+                    <div>
+                      <h4 className="text-sm font-semibold text-slate-700 mb-2">2️⃣ Expense breakdown</h4>
+                      <div className="bg-slate-50 rounded-lg p-4 text-sm">
+                        <pre className="whitespace-pre-wrap text-slate-800">
+                          {JSON.stringify(financeOrderDetail.expenseBreakdown ?? (financeOrderDetail as { expenses?: unknown }).expenses, null, 2)}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
+                  {(financeOrderDetail.settlementTimeline || (financeOrderDetail as { settlement?: unknown }).settlement) && (
+                    <div>
+                      <h4 className="text-sm font-semibold text-slate-700 mb-2">3️⃣ Settlement timeline</h4>
+                      <div className="bg-slate-50 rounded-lg p-4 text-sm">
+                        <pre className="whitespace-pre-wrap text-slate-800">
+                          {JSON.stringify(financeOrderDetail.settlementTimeline ?? (financeOrderDetail as { settlement?: unknown }).settlement, null, 2)}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
+                  {(financeOrderDetail.risk != null || (financeOrderDetail as { riskLevel?: unknown }).riskLevel) && (
+                    <div>
+                      <h4 className="text-sm font-semibold text-slate-700 mb-2">4️⃣ Risk</h4>
+                      <div className="bg-slate-50 rounded-lg p-4 text-sm text-slate-800">
+                        {String(financeOrderDetail.risk ?? (financeOrderDetail as { riskLevel?: unknown }).riskLevel ?? "—")}
+                      </div>
+                    </div>
+                  )}
+                  {financeOrderDetail.fixedExpense != null && (
+                    <div>
+                      <h4 className="text-sm font-semibold text-slate-700 mb-2">Fixed expense (editable)</h4>
+                      <p className="text-sm text-slate-600">{formatCurrency(Number(financeOrderDetail.fixedExpense))}</p>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
