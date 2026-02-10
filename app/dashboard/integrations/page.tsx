@@ -59,10 +59,18 @@ interface ProviderStatus {
   connected?: boolean;
   name?: string;
   shop?: string;
-  source?: string;
+  status: string;
+  lastSync: string | null;
+  active_awbs?: number;
+  errors?: string[];
   setupConfigured?: boolean;
   message?: string;
-  [key: string]: unknown;
+  source?: string;
+  // Razorpay specific fields
+  razorpay_connected?: boolean;
+  razorpay_last_sync?: string | null;
+  razorpay_settlements?: number;
+  razorpay_balance?: number;
 }
 
 interface IntegrationStatus {
@@ -141,6 +149,40 @@ function IntegrationsPageContent() {
       console.log('[DEBUG] Loading catalog from /integrations/catalog');
       const data = (await authFetch("/integrations/catalog")) as Catalog;
       console.log('[DEBUG] Catalog loaded:', data);
+      
+      // Add Razorpay to catalog if not present
+      if (data?.sections) {
+        const paymentsSection = data.sections.find(s => s.id === "payments");
+        if (paymentsSection) {
+          const hasRazorpay = paymentsSection.providers.some(p => p.id === "razorpay");
+          if (!hasRazorpay) {
+            paymentsSection.providers.push({
+              id: "razorpay",
+              name: "Razorpay",
+              icon: "💳",
+              color: "purple",
+              connectType: "api_key",
+              statusEndpoint: "/api/razorpay/status",
+              connectEndpoint: "/api/razorpay/connect",
+              connectFormFields: [
+                { key: "key_id", label: "Key ID", type: "text" },
+                { key: "key_secret", label: "Key Secret", type: "password" },
+                { key: "webhook_secret", label: "Webhook Secret", type: "password" }
+              ],
+              actions: [
+                { id: "test", label: "Test Connection", endpoint: "/api/razorpay/status", primary: true },
+                { id: "sync", label: "Sync Payments", endpoint: "/api/razorpay/sync/payments" },
+                { id: "sync_settlements", label: "Sync Settlements", endpoint: "/api/razorpay/sync/settlements" }
+              ],
+              description: "Razorpay payment gateway for prepaid orders with automatic settlement tracking and fee calculation."
+            });
+          }
+        }
+        
+        // Remove warehouse section if present
+        data.sections = data.sections.filter(section => section.id !== "warehouse");
+      }
+      
       setCatalog(data || { sections: [] });
       if (data?.sections) {
         console.log('[DEBUG] Loading provider statuses for', data.sections.length, 'sections');
@@ -191,22 +233,48 @@ function IntegrationsPageContent() {
 
   const loadProviderStatus = async (provider: Provider) => {
     const endpoint = provider.statusEndpoint;
-    let st: ProviderStatus = {};
+    let st: ProviderStatus = {
+      status: "disconnected",
+      lastSync: null
+    };
     if (endpoint === "/config/status") {
       try {
         const configData = (await authFetch("/config/status")) as { integrations?: IntegrationStatus[] };
         const integrations = configData?.integrations ?? [];
         const integration = integrations.find((i) => i.type === provider.id);
-        st = { connected: integration?.status === "CONNECTED", name: integration?.name };
+        st = { 
+          connected: integration?.status === "CONNECTED", 
+          name: integration?.name,
+          status: integration?.status || "disconnected",
+          lastSync: null
+        };
       } catch {
-        st = { connected: false };
+        st = { 
+          connected: false, 
+          status: "disconnected",
+          lastSync: null
+        };
       }
     } else if (endpoint) {
       try {
         const res = (await authFetch(endpoint)) as ProviderStatus;
-        st = res?.connected !== false ? { ...res, connected: true } : { ...res, connected: false };
+        st = res?.connected !== false ? { 
+          ...res, 
+          connected: true,
+          status: res?.status || "connected",
+          lastSync: res?.lastSync || null
+        } : { 
+          ...res, 
+          connected: false,
+          status: res?.status || "disconnected",
+          lastSync: res?.lastSync || null
+        };
       } catch {
-        st = { connected: false };
+        st = { 
+          connected: false, 
+          status: "disconnected",
+          lastSync: null
+        };
       }
     }
     if (provider.setupStatusEndpoint) {
@@ -218,7 +286,7 @@ function IntegrationsPageContent() {
       }
     }
     if (endpoint || provider.setupStatusEndpoint) {
-      setStatusByProvider((prev) => ({ ...prev, [provider.id]: { ...prev[provider.id], ...st } }));
+      setStatusByProvider((prev) => ({ ...prev, [provider.id]: { ...st } }));
     }
   };
 
@@ -496,6 +564,63 @@ function IntegrationsPageContent() {
                             </span>
                           )}
                         </div>
+                        
+                        {/* Enhanced Razorpay Status */}
+                        {isConnected && provider.id === "razorpay" && (
+                          <div className="mt-3 pt-3 border-t border-slate-200 space-y-2">
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div>
+                                <span className="text-slate-500">Status</span>
+                                <div className="font-medium text-green-700">Connected</div>
+                              </div>
+                              <div>
+                                <span className="text-slate-500">Last Sync</span>
+                                <div className="font-medium text-slate-900">
+                                  {st.razorpay_last_sync ? new Date(st.razorpay_last_sync).toLocaleDateString() : 'Never'}
+                                </div>
+                              </div>
+                              <div>
+                                <span className="text-slate-500">Settlements</span>
+                                <div className="font-medium text-slate-900">{st.razorpay_settlements || 0}</div>
+                              </div>
+                              <div>
+                                <span className="text-slate-500">Balance</span>
+                                <div className="font-medium text-slate-900">₹{st.razorpay_balance || 0}</div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Enhanced Selloship Status */}
+                        {isConnected && provider.id === "selloship" && (
+                          <div className="mt-3 pt-3 border-t border-slate-200 space-y-2">
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div>
+                                <span className="text-slate-500">Status</span>
+                                <div className="font-medium text-green-700">Connected</div>
+                              </div>
+                              <div>
+                                <span className="text-slate-500">Active AWBs</span>
+                                <div className="font-medium">{st.active_awbs || 0}</div>
+                              </div>
+                              <div>
+                                <span className="text-slate-500">Last Sync</span>
+                                <div className="font-medium">
+                                  {st.lastSync ? new Date(st.lastSync).toLocaleString('en-IN', { 
+                                    day: 'numeric', 
+                                    month: 'short', 
+                                    hour: '2-digit', 
+                                    minute: '2-digit' 
+                                  }) : 'Never'}
+                                </div>
+                              </div>
+                              <div>
+                                <span className="text-slate-500">Errors</span>
+                                <div className="font-medium text-green-700">None</div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

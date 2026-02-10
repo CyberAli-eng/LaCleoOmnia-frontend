@@ -11,17 +11,34 @@ interface Order {
   channelOrderId: string;
   customerName: string;
   customerEmail?: string;
-  shippingAddress?: string | null;
-  billingAddress?: string | null;
-  paymentMode: string;
-  orderTotal: number;
+  amount: number;
   status: string;
-  createdAt: string;
+  date: string;
+  eta: string | null;
+  profit: number;
+  cashStatus: 'PENDING' | 'PROCESSING' | 'SETTLED';
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+  // Payment gateway information
+  paymentStatus?: 'PENDING' | 'PROCESSING' | 'SETTLED';
+  paymentGateway?: string;
+  paymentId?: string;
+  paidAt?: string;
+  settledAt?: string;
+  // Shipment information
+  shipment?: {
+    courier: string;
+    awb: string;
+    status: string;
+    lastUpdate: string;
+    forwardCost: number;
+    reverseCost: number;
+  };
+  // Order details
   items?: OrderItem[];
-  profit?: number;
-  cashStatus?: 'PENDING' | 'CLEARED' | 'OVERDUE';
-  eta?: string | null;
-  riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
+  orderTotal?: number;
+  paymentMode?: string;
+  shippingAddress?: any;
+  billingAddress?: any;
 }
 
 interface OrderItem {
@@ -205,8 +222,10 @@ export default function OrdersPage() {
   const getPaymentBadge = (mode: string) => {
     return mode === "PREPAID" ? (
       <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-50 text-green-700">Prepaid</span>
+    ) : mode === "UNKNOWN" ? (
+      <span className="px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">Unknown</span>
     ) : (
-      <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700">COD</span>
+      <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">COD</span>
     );
   };
 
@@ -333,7 +352,15 @@ export default function OrdersPage() {
                 <th className="text-left py-3 px-4 font-semibold text-slate-700">Cash Status</th>
                 <th className="text-left py-3 px-4 font-semibold text-slate-700">ETA</th>
                 <th className="text-left py-3 px-4 font-semibold text-slate-700">Risk</th>
+                <th className="text-left py-3 px-4 font-semibold text-slate-700">Payment Status</th>
+                <th className="text-left py-3 px-4 font-semibold text-slate-700">Gateway</th>
+                <th className="text-left py-3 px-4 font-semibold text-slate-700">Paid Date</th>
+                <th className="text-left py-3 px-4 font-semibold text-slate-700">Settled Date</th>
+                <th className="text-left py-3 px-4 font-semibold text-slate-700">Source</th>
+                <th className="text-left py-3 px-4 font-semibold text-slate-700">Courier</th>
+                <th className="text-left py-3 px-4 font-semibold text-slate-700">AWB</th>
                 <th className="text-left py-3 px-4 font-semibold text-slate-700">Status</th>
+                <th className="text-left py-3 px-4 font-semibold text-slate-700">Last Update</th>
                 <th className="text-left py-3 px-4 font-semibold text-slate-700">Date</th>
                 <th className="text-center py-3 px-4 font-semibold text-slate-700">Actions</th>
               </tr>
@@ -366,7 +393,7 @@ export default function OrdersPage() {
                       )}
                     </div>
                   </td>
-                  <td className="py-3 px-4">{getPaymentBadge(order.paymentMode)}</td>
+                  <td className="py-3 px-4">{getPaymentBadge(order.paymentMode || 'UNKNOWN')}</td>
                   <td className="py-3 px-4 text-right font-semibold text-slate-900">
                     {formatCurrency(order.orderTotal)}
                   </td>
@@ -384,8 +411,9 @@ export default function OrdersPage() {
                   <td className="py-3 px-4">
                     {order.cashStatus ? (
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        order.cashStatus === 'CLEARED' ? 'bg-green-50 text-green-700' :
+                        order.cashStatus === 'SETTLED' ? 'bg-green-50 text-green-700' :
                         order.cashStatus === 'PENDING' ? 'bg-yellow-50 text-yellow-700' :
+                        order.cashStatus === 'PROCESSING' ? 'bg-yellow-50 text-yellow-700' :
                         'bg-red-50 text-red-700'
                       }`}>
                         {order.cashStatus}
@@ -410,13 +438,41 @@ export default function OrdersPage() {
                       <span className="text-slate-400">—</span>
                     )}
                   </td>
+                  <td className="py-3 px-4 text-slate-600">
+                    {order.paymentStatus ? (
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        order.paymentStatus === 'SETTLED' ? 'bg-green-50 text-green-700' :
+                        order.paymentStatus === 'PENDING' ? 'bg-yellow-50 text-yellow-700' :
+                        'bg-red-50 text-red-700'
+                      }`}>
+                        {order.paymentStatus}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </td>
+                  <td className="py-3 px-4 text-slate-600">
+                    {order.paymentGateway || '—'}
+                  </td>
+                  <td className="py-3 px-4 text-slate-600">
+                    {order.paidAt ? new Date(order.paidAt).toLocaleDateString() : '—'}
+                  </td>
+                  <td className="py-3 px-4 text-slate-600">
+                    {order.settledAt ? new Date(order.settledAt).toLocaleDateString() : '—'}
+                  </td>
+                  <td className="py-3 px-4 text-slate-600">
+                    {order.shipment?.courier || '—'}
+                  </td>
+                  <td className="py-3 px-4 text-slate-600">
+                    {order.shipment?.awb || '—'}
+                  </td>
                   <td className="py-3 px-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                      {order.status}
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.shipment?.status || 'CREATED')}`}>
+                      {order.shipment?.status || '—'}
                     </span>
                   </td>
                   <td className="py-3 px-4 text-slate-600">
-                    {new Date(order.createdAt).toLocaleDateString()}
+                    {order.shipment?.lastUpdate ? new Date(order.shipment.lastUpdate).toLocaleDateString() : '—'}
                   </td>
                   <td className="py-3 px-4">
                     <div className="flex items-center justify-center gap-2">
@@ -573,7 +629,7 @@ export default function OrdersPage() {
                 </div>
                 <div>
                   <p className="text-xs text-slate-500">Payment Mode</p>
-                  <p className="mt-1">{getPaymentBadge(selectedOrder.paymentMode)}</p>
+                  <p className="mt-1">{getPaymentBadge(selectedOrder.paymentMode || 'UNKNOWN')}</p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-500">Status</p>

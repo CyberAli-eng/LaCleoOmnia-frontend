@@ -73,11 +73,18 @@ export const navigationConfig: NavigationConfig = {
       label: "Operations",
       items: [
         {
-          id: "labels",
-          label: "Labels",
-          href: "/dashboard/labels",
-          icon: Tag,
-          pattern: "^/dashboard/labels",
+          id: "settlements",
+          label: "Settlements",
+          href: "/dashboard/settlements",
+          icon: DollarSign,
+          pattern: "^/dashboard/settlements",
+        },
+        {
+          id: "logistics",
+          label: "Logistics",
+          href: "/dashboard/logistics",
+          icon: Package,
+          pattern: "^/dashboard/logistics",
         },
         {
           id: "workers",

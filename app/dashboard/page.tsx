@@ -42,23 +42,21 @@ interface Overview {
   todayRevenue: number;
   yesterdayRevenue: number;
   todayOrders: number;
-  yesterdayOrders: number;
   todayItems: number;
   yesterdayItems: number;
-  orderAlerts: { pendingOrders: number; pendingShipment: number };
-  productAlerts: { lowStockCount: number };
-  channelAlerts: { connectedCount: number };
-  cashPending?: number;
-  rtoLoss?: number;
+  orderAlerts: { pendingOrders: number; pendingShipment: 0 };
+  productAlerts: { lowStockCount: 0 };
+  channelAlerts: { connectedCount: 0 };
+  recentOrders: [];
+  // Razorpay specific metrics
+  gatewayPending: number;
+  gatewaySettled: number;
+  gatewayFees: number;
+  // Financial metrics
   netProfit?: number;
-  recentOrders: Array<{
-    id: string;
-    externalId: string;
-    source: string;
-    status: string;
-    total: number;
-    createdAt: string | null;
-  }>;
+  rtoLoss?: number;
+  codPercent?: number;
+  cashPending?: number;
 }
 
 interface SyncJob {
@@ -124,6 +122,15 @@ export default function DashboardPage() {
     productAlerts: { lowStockCount: 0 },
     channelAlerts: { connectedCount: 0 },
     recentOrders: [],
+    // Razorpay specific metrics
+    gatewayPending: 0,
+    gatewaySettled: 0,
+    gatewayFees: 0,
+    // Financial metrics
+    netProfit: 0,
+    rtoLoss: 0,
+    codPercent: 0,
+    cashPending: 0,
   };
   const revenue = fo.revenue ?? lo.todayRevenue ?? 0;
   const netProfit = fo.netProfit ?? lo.netProfit ?? 0;
@@ -184,10 +191,24 @@ export default function DashboardPage() {
         </Link>
         <Link
           href="/dashboard/settlements"
-          className="rounded-xl border border-yellow-200 bg-yellow-50/80 p-5 shadow-sm hover:border-yellow-300 transition-colors"
+          className="flex justify-between rounded-xl border border-yellow-200 bg-yellow-50/80 p-5 shadow-sm hover:border-yellow-300 transition-colors"
         >
           <p className="text-xs font-medium text-yellow-800">Cash Pending</p>
           <p className="mt-2 text-xl font-bold text-yellow-700">{formatCurrency(cashPending)}</p>
+        </Link>
+        <Link
+          href="/dashboard/settlements"
+          className="flex justify-between rounded-xl border border-purple-200 bg-purple-50/80 p-5 shadow-sm hover:border-purple-300 transition-colors"
+        >
+          <p className="text-xs font-medium text-purple-800">Gateway Pending</p>
+          <p className="mt-2 text-xl font-bold text-purple-700">{formatCurrency(lo.gatewayPending || 0)}</p>
+        </Link>
+        <Link
+          href="/dashboard/settlements"
+          className="flex justify-between rounded-xl border border-green-200 bg-green-50/80 p-5 shadow-sm hover:border-green-300 transition-colors"
+        >
+          <p className="text-xs font-medium text-green-800">Gateway Settled</p>
+          <p className="mt-2 text-xl font-bold text-green-700">{formatCurrency(lo.gatewaySettled || 0)}</p>
         </Link>
         <Link
           href="/dashboard/orders?payment=COD"

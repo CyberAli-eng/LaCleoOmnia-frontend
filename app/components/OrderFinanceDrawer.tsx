@@ -9,7 +9,7 @@ interface OrderFinance {
   channelOrderId: string;
   customerName: string;
   orderTotal: number;
-  status: string;
+  orderStatus: string;
   createdAt: string;
   revenue: {
     total: number;
@@ -32,7 +32,7 @@ interface OrderFinance {
     createdAt: string;
   }>;
   settlement: {
-    status: 'PENDING' | 'PROCESSING' | 'SETTLED' | 'FAILED';
+    settlementStatus: 'PENDING' | 'PROCESSING' | 'SETTLED' | 'FAILED';
     amount: number;
     expectedDate: string | null;
     settledDate: string | null;
@@ -47,6 +47,35 @@ interface OrderFinance {
     timestamp: string;
     note?: string;
   }>;
+  // Payment gateway information
+  partner?: "RAZORPAY" | "PAYMENT_GATEWAY" | "COD" | "SELLOSHIP" | "DELHIVERY";
+  gateway?: "RAZORPAY" | "PAYMENT_GATEWAY";
+  gateway_payment_id?: string;
+  gateway_order_id?: string;
+  amount?: number;
+  currency?: string;
+  fee?: number;
+  tax?: number;
+  net_amount?: number;
+  paymentStatus?: "PAID" | "SETTLED";
+  paid_at?: string;
+  settled_at?: string;
+  // Shipment information
+  shipment?: {
+    courier: string;
+    awb: string;
+    shipmentStatus: string;
+    lastUpdate: string;
+    forwardCost: number;
+    reverseCost: number;
+  };
+  // Settlement details
+  gateway_fees?: number;
+  gateway_tax?: number;
+  total_deductions?: number;
+  settlement_amount?: number;
+  gateway_settlement_id?: string;
+  utr?: string;
 }
 
 interface OrderFinanceDrawerProps {
@@ -207,7 +236,124 @@ export default function OrderFinanceDrawer({ orderId, isOpen, onClose }: OrderFi
                 </div>
               </div>
               
-              {/* Items */}
+              {/* Payment Panel */}
+            {orderFinance.partner === "RAZORPAY" && (
+              <div>
+                <h4 className="text-base font-semibold text-slate-900 mb-4">💳 Payment Panel</h4>
+                <div className="bg-slate-50 rounded-lg p-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <span className="text-sm text-slate-500">Gateway</span>
+                      <div className="font-medium text-slate-900">Razorpay</div>
+                    </div>
+                    <div>
+                      <span className="text-sm text-slate-500">Payment ID</span>
+                      <div className="font-medium text-slate-900">{orderFinance.gateway_payment_id || '—'}</div>
+                    </div>
+                    <div>
+                      <span className="text-sm text-slate-500">Amount</span>
+                      <div className="font-medium text-slate-900">{formatCurrency(orderFinance.amount || 0)}</div>
+                    </div>
+                    <div>
+                      <span className="text-sm text-slate-500">Fee</span>
+                      <div className="font-medium text-slate-900">{formatCurrency((orderFinance.fee || 0) + (orderFinance.tax || 0))}</div>
+                    </div>
+                    <div>
+                      <span className="text-sm text-slate-500">Net Amount</span>
+                      <div className="font-medium text-slate-900">{formatCurrency(orderFinance.net_amount || 0)}</div>
+                    </div>
+                    <div>
+                      <span className="text-sm text-slate-500">Paid At</span>
+                      <div className="font-medium text-slate-900">
+                        {orderFinance.paid_at ? new Date(orderFinance.paid_at).toLocaleDateString() : '—'}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-sm text-slate-500">Settled At</span>
+                      <div className="font-medium text-slate-900">
+                        {orderFinance.settled_at ? new Date(orderFinance.settled_at).toLocaleDateString() : '—'}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-sm text-slate-500">Status</span>
+                      <div className="font-medium text-slate-900">{orderFinance.paymentStatus || '—'}</div>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-4 pt-4 border-t border-slate-200">
+                    <h5 className="text-sm font-medium text-slate-700 mb-3">Payment Details</h5>
+                    <div className="text-xs text-slate-500 space-y-1">
+                      {orderFinance.gateway_order_id && (
+                        <div>Order ID: {orderFinance.gateway_order_id}</div>
+                      )}
+                      {orderFinance.gateway_settlement_id && (
+                        <div>Settlement ID: {orderFinance.gateway_settlement_id}</div>
+                      )}
+                      {orderFinance.utr && (
+                        <div>UTR: {orderFinance.utr}</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Shipment Panel */}
+            {orderFinance.shipment && (
+              <div>
+                <h4 className="text-base font-semibold text-slate-900 mb-4">📦 Shipment Panel</h4>
+                <div className="bg-slate-50 rounded-lg p-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <span className="text-sm text-slate-500">Courier</span>
+                      <div className="font-medium text-slate-900">{orderFinance.shipment?.courier || '—'}</div>
+                    </div>
+                    <div>
+                      <span className="text-sm text-slate-500">AWB</span>
+                      <div className="font-medium text-slate-900">{orderFinance.shipment?.awb || '—'}</div>
+                    </div>
+                    <div>
+                      <span className="text-sm text-slate-500">Status</span>
+                      <div className="font-medium text-slate-900">{orderFinance.shipment?.shipmentStatus || '—'}</div>
+                    </div>
+                    <div>
+                      <span className="text-sm text-slate-500">Last Update</span>
+                      <div className="font-medium text-slate-900">
+                        {orderFinance.shipment?.lastUpdate ? new Date(orderFinance.shipment.lastUpdate).toLocaleDateString() : '—'}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Cost Breakdown */}
+                  <div className="mt-4 pt-4 border-t border-slate-200">
+                    <h5 className="text-sm font-medium text-slate-700 mb-3">Cost Breakdown</h5>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-sm text-slate-500">Forward Cost (Auto)</span>
+                        <div className="font-medium text-slate-900">
+                          {formatCurrency(orderFinance.shipment?.forwardCost || 0)}
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-sm text-slate-500">Reverse Cost (Auto)</span>
+                        <div className="font-medium text-slate-900">
+                          {formatCurrency(orderFinance.shipment?.reverseCost || 0)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Refresh Button */}
+                  <div className="mt-4 pt-4 border-t border-slate-200">
+                    <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors">
+                      🔄 Refresh Status
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Items */}
               <div className="mt-4">
                 <h5 className="text-sm font-medium text-slate-700 mb-2">Items</h5>
                 <div className="space-y-2">
@@ -266,8 +412,7 @@ export default function OrderFinanceDrawer({ orderId, isOpen, onClose }: OrderFi
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-xs text-slate-500">Status</p>
-                    <span className={`inline-block mt-1 px-2 py-1 rounded-full text-xs font-medium ${getSettlementColor(orderFinance.settlement.status)}`}>
-                      {orderFinance.settlement.status}
+                    <span className={`inline-block mt-1 px-2 py-1 rounded-full text-xs font-medium ${getSettlementColor(orderFinance.settlement.settlementStatus)}`}>
                     </span>
                   </div>
                   <div>
