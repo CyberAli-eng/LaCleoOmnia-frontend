@@ -127,17 +127,18 @@ export function getAuthHeaders(): Record<string, string> {
     if (typeof window === 'undefined') {
         return {};
     }
-    // Try to get token from both localStorage and cookies
-    const token = localStorage.getItem('token') || 
-                  (typeof document !== 'undefined' ? 
+
+    // Get token from localStorage and cookies (authStore persists to localStorage)
+    const token = localStorage.getItem('token') ||
+                  (typeof document !== 'undefined' ?
                    document.cookie.split(';').find(c => c.trim().startsWith('token='))?.split('=')[1] : null);
-    
+
     if (!token) {
         console.warn('⚠️ No authentication token found');
         return {};
     }
-    
-    return { 
+
+    return {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
         'Accept': 'application/json'

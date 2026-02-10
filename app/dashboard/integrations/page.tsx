@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { authFetch } from "@/utils/api";
+import { appConfig } from "@/utils/config";
 import Link from "next/link";
 import { GuideDrawer, type GuideStep } from "@/app/components/GuideDrawer";
 
@@ -137,14 +138,19 @@ function IntegrationsPageContent() {
 
   const loadCatalog = useCallback(async () => {
     try {
+      console.log('[DEBUG] Loading catalog from /integrations/catalog');
       const data = (await authFetch("/integrations/catalog")) as Catalog;
+      console.log('[DEBUG] Catalog loaded:', data);
       setCatalog(data || { sections: [] });
       if (data?.sections) {
+        console.log('[DEBUG] Loading provider statuses for', data.sections.length, 'sections');
         for (const section of data.sections) {
           for (const provider of section.providers) {
             loadProviderStatus(provider);
           }
         }
+      } else {
+        console.warn('[DEBUG] No sections in catalog data');
       }
     } catch (err) {
       console.error("Failed to load catalog:", err);
@@ -153,10 +159,17 @@ function IntegrationsPageContent() {
   }, []);
 
   useEffect(() => {
+    console.log('[DEBUG] Component mounted, loading catalog and connected channels');
     loadCatalog();
     authFetch("/integrations/connected-summary")
-      .then((list: unknown) => setConnectedChannels(Array.isArray(list) ? (list as ConnectedChannel[]) : []))
-      .catch(() => setConnectedChannels([]));
+      .then((list: any) => {
+        console.log('[DEBUG] Connected channels:', list);
+        setConnectedChannels(Array.isArray(list) ? list : []);
+      })
+      .catch((err) => {
+        console.error('[DEBUG] Failed to load connected channels:', err);
+        setConnectedChannels([]);
+      });
   }, [loadCatalog]);
 
   useEffect(() => {
@@ -548,7 +561,7 @@ function IntegrationsPageContent() {
                                     : "Connect via OAuth (recommended)"}
                                 </button>
                                 <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                                  If Shopify says &quot;redirect_uri is not whitelisted&quot;, in your Shopify app go to <strong>Configuration</strong> → <strong>Allowed redirection URL(s)</strong> and add exactly: <code className="text-xs break-all">https://lacleoomnia-api.onrender.com/auth/shopify/callback</code> (no trailing slash).
+                                  If Shopify says &quot;redirect_uri is not whitelisted&quot;, in your Shopify app go to <strong>Configuration</strong> → <strong>Allowed redirection URL(s)</strong> and add exactly: <code className="text-xs break-all">{appConfig.shopifyCallbackUrl}</code> (no trailing slash).
                                 </p>
                               </div>
                             )}
@@ -606,7 +619,7 @@ function IntegrationsPageContent() {
                           </div>
                         ))}
                         <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                          In Shopify, add this exact URL under <strong>Allowed redirection URL(s)</strong>: <code className="text-xs break-all">https://lacleoomnia-api.onrender.com/auth/shopify/callback</code>
+                          In Shopify, add this exact URL under <strong>Allowed redirection URL(s)</strong>: <code className="text-xs break-all">{appConfig.shopifyCallbackUrl}</code>
                         </p>
                         <div className="flex gap-2">
                           <button
