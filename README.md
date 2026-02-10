@@ -3,7 +3,7 @@ This is the **LaCleoOmnia** frontend (Next.js): Order & Inventory Management wit
 ## Getting Started
 
 **Full flow:** See repo root [GETTING_STARTED.md](../../GETTING_STARTED.md) and [USER_GUIDE.md](../../USER_GUIDE.md).  
-**Local dev:** Set `NEXT_PUBLIC_API_URL=http://localhost:8000/api` in `apps/web/.env.local`, then run the backend (see `apps/api-python/README_LOCAL.md`) and this app.
+**Local dev:** Set `NEXT_PUBLIC_API_BASE_URL=http://localhost:8000` (or `NEXT_PUBLIC_API_URL=http://localhost:8000/api`) in `.env.local`, then run the backend and this app.
 
 First, run the development server:
 

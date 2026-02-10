@@ -41,7 +41,8 @@ export default function ExpenseEditor({ expense, onSave, onCancel, onDelete }: E
     setError(null);
 
     try {
-      const response = await authFetch(`/api/finance/expense/${editingExpense.id}`, {
+      // NOTE: `authFetch()` already targets `{API_BASE_URL}/api`, so paths must NOT start with `/api/...`
+      const response = await authFetch(`/finance/expense/${editingExpense.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -75,7 +76,7 @@ export default function ExpenseEditor({ expense, onSave, onCancel, onDelete }: E
     setError(null);
 
     try {
-      const response = await authFetch(`/api/finance/expense/${editingExpense.id}`, {
+      const response = await authFetch(`/finance/expense/${editingExpense.id}`, {
         method: "DELETE",
       });
 

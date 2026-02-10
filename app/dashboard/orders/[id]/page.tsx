@@ -173,7 +173,8 @@ export default function OrderDetailPage() {
     );
   }
 
-  const canConfirm = order.status === "NEW" || order.status === "HOLD";
+  // Lifecycle is Shopify → Shipment → Delivered/RTO → Finance. No internal confirm step.
+  const canConfirm = false;
   const canPack = order.status === "CONFIRMED";
   const canShip = order.status === "PACKED";
   const canCancel = !["SHIPPED", "DELIVERED", "CANCELLED"].includes(order.status);
@@ -190,15 +191,6 @@ export default function OrderDetailPage() {
           <p className="mt-1 text-sm text-slate-600">Order ID: {order.id}</p>
         </div>
         <div className="flex gap-2">
-          {canConfirm && (
-            <button
-              onClick={() => handleAction("confirm")}
-              disabled={processing}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
-            >
-              Confirm
-            </button>
-          )}
           {canPack && (
             <button
               onClick={() => handleAction("pack")}

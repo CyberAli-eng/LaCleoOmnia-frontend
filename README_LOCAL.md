@@ -45,12 +45,12 @@ Frontend will run at: `http://localhost:3000`
 ### ⚠️ Local Development vs Production
 
 - **Local Development**: Frontend should connect to `http://localhost:8000/api`
-- **Production**: Frontend connects to `https://lacleoomnia.onrender.com/api` (set in Vercel)
+- **Production**: Frontend connects to `https://lacleoomnia-api.onrender.com/api` (set in Vercel)
 
 ### Why the CORS Error?
 
 If you see CORS errors, it means:
-1. Frontend is trying to connect to production backend (`https://lacleoomnia.onrender.com`)
+1. Frontend is trying to connect to production backend (`https://lacleoomnia-api.onrender.com`)
 2. But you're running locally (`http://localhost:3000`)
 3. Production backend doesn't allow localhost origins
 

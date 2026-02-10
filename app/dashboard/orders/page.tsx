@@ -210,7 +210,9 @@ export default function OrdersPage() {
     );
   };
 
-  const canConfirm = (order: Order) => order.status === "NEW" || order.status === "HOLD";
+  // Lifecycle is Shopify → Shipment → Delivered/RTO → Finance. No internal confirm step.
+  // Keep helpers for potential future use, but do not expose confirm in UI.
+  const canConfirm = (_order: Order) => false;
   const canPack = (order: Order) => order.status === "CONFIRMED";
   const canShip = (order: Order) => order.status === "PACKED";
   const canCancel = (order: Order) => !["SHIPPED", "DELIVERED", "CANCELLED"].includes(order.status);
@@ -272,7 +274,6 @@ export default function OrdersPage() {
               className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Select action...</option>
-              <option value="confirm">Bulk Confirm</option>
               <option value="pack">Bulk Pack</option>
               <option value="ship">Bulk Ship</option>
               <option value="cancel">Bulk Cancel</option>
@@ -432,15 +433,7 @@ export default function OrdersPage() {
                       >
                         Finance
                       </button>
-                      {canConfirm(order) && (
-                        <button
-                          onClick={() => handleOrderAction(order.id, "confirm")}
-                          disabled={processing.has(order.id)}
-                          className="text-purple-600 hover:text-purple-700 text-xs font-medium disabled:opacity-50"
-                        >
-                          Confirm
-                        </button>
-                      )}
+                      {/* Confirm hidden – no internal warehouse-based confirm step */}
                       {canPack(order) && (
                         <button
                           onClick={() => handleOrderAction(order.id, "pack")}

@@ -62,7 +62,8 @@ export default function OrderFinanceDrawer({ orderId, isOpen, onClose }: OrderFi
   const loadOrderFinance = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await authFetch(`/api/finance/orders/${orderId}`);
+      // NOTE: `authFetch()` already targets `{API_BASE_URL}/api`, so paths must NOT start with `/api/...`
+      const data = await authFetch(`/finance/orders/${orderId}`);
       setOrderFinance(data);
     } catch (err) {
       console.error("Failed to load order finance:", err);
