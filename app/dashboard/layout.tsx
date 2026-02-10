@@ -1,12 +1,59 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { getCookie, setCookie } from "@/utils/cookies";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { getCookie, deleteCookie, setCookie } from "@/utils/cookies";
 import { authFetch } from "@/utils/api";
 import { useAuthStore } from "@/src/stores/authStore";
 import { Sidebar } from "@/src/components/common/Sidebar";
 import { DashboardHeader } from "@/src/components/common/DashboardHeader";
+
+interface ConnectedChannel {
+  id: string;
+  name: string;
+}
+
+const connectedChannelsStore = (() => {
+  let data: ConnectedChannel[] = [];
+  let fetching = false;
+  const listeners = new Set<() => void>();
+
+  const notify = () => {
+    listeners.forEach((listener) => listener());
+  };
+
+  const fetchData = async () => {
+    if (fetching) return;
+    fetching = true;
+    try {
+      const list = await authFetch("/integrations/connected-summary").catch(() => []);
+      data = Array.isArray(list) ? list : [];
+    } catch {
+      data = [];
+    } finally {
+      fetching = false;
+      notify();
+    }
+  };
+
+  return {
+    subscribe(listener: () => void) {
+      listeners.add(listener);
+      if (listeners.size === 1) {
+        void fetchData();
+      }
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    getSnapshot() {
+      return data;
+    },
+    refresh() {
+      void fetchData();
+    },
+  };
+})();
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();

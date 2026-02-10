@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 const getToken = (): string | null => {
   if (typeof window === "undefined") return null;
@@ -31,26 +31,20 @@ const getUserName = (): string | null => {
 
 export default function Header() {
   const router = useRouter();
-  const pathname = usePathname();
-  const [mounted, setMounted] = useState(false);
-  const [token, setToken] = useState<string | null>(null);
-  const [userName, setUserName] = useState<string | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    setToken(getToken());
-    setUserName(getUserName());
-  }, [pathname]);
-
-  const isLoggedIn = mounted && !!token;
+  const isClient = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+  const token = getToken();
+  const userName = getUserName();
+  const isLoggedIn = isClient && !!token;
 
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    setToken(null);
-    setUserName(null);
     setAccountOpen(false);
     router.push("/login");
   };
@@ -67,7 +61,7 @@ export default function Header() {
         </Link>
 
         <div className="flex items-center gap-3">
-          {!mounted ? (
+          {!isClient ? (
             <div className="h-9 w-24 animate-pulse rounded-lg bg-slate-200" />
           ) : isLoggedIn ? (
             <div className="relative">

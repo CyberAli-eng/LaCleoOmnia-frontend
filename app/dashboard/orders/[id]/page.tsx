@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { authFetch } from "@/utils/api";
 import { formatCurrency } from "@/utils/currency";
 import Link from "next/link";
@@ -69,20 +69,13 @@ interface OrderItem {
 
 export default function OrderDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const orderId = params.id as string;
   const [order, setOrder] = useState<Order | null>(null);
   const [timeline, setTimeline] = useState<OrderTimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
 
-  useEffect(() => {
-    if (orderId) {
-      loadOrder();
-    }
-  }, [orderId]);
-
-  const loadOrder = async () => {
+  const loadOrder = useCallback(async () => {
     setLoading(true);
     try {
       const data = await authFetch(`/orders/${orderId}`) as { order: Order };
@@ -117,15 +110,22 @@ export default function OrderDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [orderId]);
+
+  useEffect(() => {
+    if (orderId) {
+      loadOrder();
+    }
+  }, [orderId, loadOrder]);
 
   const handleAction = async (action: string) => {
     setProcessing(true);
     try {
       await authFetch(`/orders/${orderId}/${action}`, { method: "POST" });
       await loadOrder();
-    } catch (err: any) {
-      alert(err.message || "Action failed");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Action failed";
+      alert(message);
     } finally {
       setProcessing(false);
     }

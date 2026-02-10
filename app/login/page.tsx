@@ -11,89 +11,14 @@ function LoginForm({ redirectTo }: { redirectTo: string }) {
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
-    const [googleLoading, setGoogleLoading] = useState(false);
-    const [googleClientId, setGoogleClientId] = useState<string | null>(null);
-    const [mounted, setMounted] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
-        setMounted(true);
         const token = getCookie("token") || localStorage.getItem("token");
         if (token) {
             router.replace(redirectTo.startsWith("/") ? redirectTo : "/dashboard");
         }
-        const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || null;
-        setGoogleClientId(clientId);
     }, [router, redirectTo]);
-
-    useEffect(() => {
-        if (!mounted) return;
-        if (!googleClientId) {
-            fetch("/api/env")
-                .then((res) => res.json())
-                .then((data) => setGoogleClientId(data.googleClientId || null))
-                .catch(() => null);
-        }
-    }, [googleClientId, mounted]);
-
-    useEffect(() => {
-        if (!mounted || !googleClientId) return;
-        const scriptId = "google-identity-script";
-        if (document.getElementById(scriptId)) return;
-
-        const script = document.createElement("script");
-        script.id = scriptId;
-        script.src = "https://accounts.google.com/gsi/client";
-        script.async = true;
-        script.defer = true;
-        script.onload = () => {
-            // @ts-expect-error Google Identity Services global
-            const google = window.google;
-            if (!google?.accounts?.id) return;
-            google.accounts.id.initialize({
-                client_id: googleClientId,
-                callback: async (response: { credential: string }) => {
-                    setGoogleLoading(true);
-                    setError("");
-                    try {
-                        const res = await fetch(`${API_BASE_URL}/auth/google`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ idToken: response.credential }),
-                        });
-                        const data = await res.json();
-                        if (!res.ok) throw new Error(data.error || "Google login failed");
-                        // Store in both localStorage and cookies
-                        localStorage.setItem("token", data.token);
-                        localStorage.setItem("user", JSON.stringify(data.user));
-                        setCookie("token", data.token, 7); // 7 days
-                        const target = redirectTo.startsWith("/") ? redirectTo : "/dashboard";
-                        router.push(target);
-                    } catch (err: any) {
-                        setError(err.message);
-                    } finally {
-                        setGoogleLoading(false);
-                    }
-                },
-            });
-            const buttonElement = document.getElementById("google-signin");
-            if (buttonElement) {
-                google.accounts.id.renderButton(
-                    buttonElement,
-                    { theme: "outline", size: "large", width: "360" }
-                );
-            }
-        };
-        document.body.appendChild(script);
-        
-        return () => {
-            // Cleanup script on unmount
-            const existingScript = document.getElementById(scriptId);
-            if (existingScript) {
-                existingScript.remove();
-            }
-        };
-    }, [googleClientId, router, mounted, redirectTo]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -135,11 +60,14 @@ function LoginForm({ redirectTo }: { redirectTo: string }) {
                         // FastAPI validation errors can be arrays or strings
                         if (Array.isArray(data.detail)) {
                             // Parse Pydantic validation errors
-                            errorMessage = data.detail.map((err: any) => {
-                                const field = err.loc ? err.loc.slice(1).join('.') : 'field';
-                                const msg = err.msg || err.message || 'Invalid value';
-                                return `${field}: ${msg}`;
-                            }).join(', ');
+                            errorMessage = data.detail
+                                .map((err: unknown) => {
+                                    const typed = err as { loc?: Array<string | number>; msg?: string; message?: string };
+                                    const field = Array.isArray(typed.loc) ? typed.loc.slice(1).join(".") : "field";
+                                    const msg = typed.msg || typed.message || "Invalid value";
+                                    return `${field}: ${msg}`;
+                                })
+                                .join(", ");
                         } else {
                             errorMessage = String(data.detail);
                         }
@@ -150,7 +78,7 @@ function LoginForm({ redirectTo }: { redirectTo: string }) {
                     } else {
                         errorMessage = JSON.stringify(data);
                     }
-                } catch (parseError) {
+                } catch {
                     // If JSON parsing fails, try to get text
                     try {
                         const text = await res.text();
@@ -172,9 +100,10 @@ function LoginForm({ redirectTo }: { redirectTo: string }) {
             // Use replace to avoid back button issues; respect redirect (e.g. /auth/shopify?shop=...)
             const target = redirectTo.startsWith("/") ? redirectTo : "/dashboard";
             router.replace(target);
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Login error:", err);
-            let errorMessage = err.message || "Login failed";
+            const baseMessage = err instanceof Error ? err.message : "Login failed";
+            let errorMessage = baseMessage;
             
             // Handle object errors
             if (typeof errorMessage === 'object') {
@@ -214,7 +143,7 @@ function LoginForm({ redirectTo }: { redirectTo: string }) {
                         Sign in to your account
                     </h2>
                     <p className="mt-2 text-center text-sm text-slate-600">
-                        Sign in with email or Google.
+                        Sign in with email.
                     </p>
                 </div>
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -281,16 +210,7 @@ function LoginForm({ redirectTo }: { redirectTo: string }) {
                         >
                             {loading ? "Signing in..." : "Sign in"}
                         </button>
-                        {googleClientId ? (
-                            <div className="flex justify-center">
-                                <div id="google-signin" className={googleLoading ? "opacity-50" : ""} />
-                            </div>
-                        ) : (
-                            <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
-                                Set `NEXT_PUBLIC_GOOGLE_CLIENT_ID` to enable Google sign-in.
-                            </div>
-                        )}
-                    </div>
+</div>
                 </form>
             </div>
         </div>

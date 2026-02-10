@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import { authFetch } from "@/utils/api";
 import { TablePagination } from "@/app/components/TablePagination";
 
@@ -11,7 +11,7 @@ interface AuditLog {
   action: string;
   entityType: string;
   entityId: string;
-  details?: any;
+  details?: unknown;
   createdAt: string;
 }
 
@@ -24,12 +24,7 @@ export default function AuditLogsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  useEffect(() => {
-    loadLogs();
-    setPage(1);
-  }, [filterEntityType, filterAction]);
-
-  const loadLogs = async () => {
+  const loadLogs = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -43,7 +38,12 @@ export default function AuditLogsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterAction, filterEntityType]);
+
+  useEffect(() => {
+    loadLogs();
+    setPage(1);
+  }, [filterEntityType, filterAction, loadLogs]);
 
   const filteredLogs = logs;
   const paginatedLogs = useMemo(() => {

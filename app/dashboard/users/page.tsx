@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { authFetch } from "@/utils/api";
 import { useRouter } from "next/navigation";
 
@@ -16,7 +16,7 @@ export default function UsersPage() {
   const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -25,27 +25,28 @@ export default function UsersPage() {
     role: "STAFF",
   });
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [usersData, meData] = await Promise.all([
         authFetch("/users").catch(() => ({ users: [] })),
         authFetch("/auth/me").catch(() => null),
       ]);
       setUsers(Array.isArray(usersData?.users) ? usersData.users : []);
-      setCurrentUser(meData?.user || null);
-    } catch (err: any) {
-      if (err.message?.includes("403") || err.message?.includes("Admin")) {
+      setCurrentUser((meData as { user?: User })?.user || null);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "";
+      if (message.includes("403") || message.includes("Admin")) {
         router.push("/dashboard");
       }
       console.error("Failed to load users:", err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleCreate = async () => {
     if (!formData.name || !formData.email || !formData.password) {
@@ -61,8 +62,9 @@ export default function UsersPage() {
       await loadData();
       setShowCreateModal(false);
       setFormData({ name: "", email: "", password: "", role: "STAFF" });
-    } catch (err: any) {
-      alert(`Failed to create user: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to create user";
+      alert(`Failed to create user: ${message}`);
     }
   };
 
@@ -74,8 +76,9 @@ export default function UsersPage() {
         body: JSON.stringify({ role: newRole }),
       });
       await loadData();
-    } catch (err: any) {
-      alert(`Failed to update user: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to update user";
+      alert(`Failed to update user: ${message}`);
     }
   };
 
@@ -84,8 +87,9 @@ export default function UsersPage() {
     try {
       await authFetch(`/users/${userId}`, { method: "DELETE" });
       await loadData();
-    } catch (err: any) {
-      alert(`Failed to delete user: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to delete user";
+      alert(`Failed to delete user: ${message}`);
     }
   };
 

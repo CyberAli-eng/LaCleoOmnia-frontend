@@ -49,11 +49,14 @@ export default function RegisterPage() {
           } else if (data.detail) {
             // FastAPI validation errors can be arrays or strings
             if (Array.isArray(data.detail)) {
-              errorMessage = data.detail.map((err: any) => {
-                const field = err.loc ? err.loc.slice(1).join('.') : 'field';
-                const msg = err.msg || err.message || 'Invalid value';
-                return `${field}: ${msg}`;
-              }).join(', ');
+              errorMessage = data.detail
+                .map((err: unknown) => {
+                  const typed = err as { loc?: Array<string | number>; msg?: string; message?: string };
+                  const field = Array.isArray(typed.loc) ? typed.loc.slice(1).join(".") : "field";
+                  const msg = typed.msg || typed.message || "Invalid value";
+                  return `${field}: ${msg}`;
+                })
+                .join(", ");
             } else {
               errorMessage = String(data.detail);
             }
@@ -62,7 +65,7 @@ export default function RegisterPage() {
           } else if (data.message) {
             errorMessage = String(data.message);
           }
-        } catch (parseError) {
+        } catch {
           try {
             const text = await res.text();
             if (text) errorMessage = text;
@@ -81,9 +84,10 @@ export default function RegisterPage() {
       setCookie("token", data.token, 7); // 7 days
       
       router.replace("/dashboard");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Registration error:", err);
-      let errorMessage = err.message || "Registration failed";
+      const baseMessage = err instanceof Error ? err.message : "Registration failed";
+      let errorMessage = baseMessage;
       
       // Handle object errors
       if (typeof errorMessage === 'object') {

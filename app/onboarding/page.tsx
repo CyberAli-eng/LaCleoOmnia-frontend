@@ -5,11 +5,18 @@ import { useRouter } from "next/navigation";
 import { authFetch } from "@/utils/api";
 import Link from "next/link";
 
+interface IntegrationStatus {
+  id: string;
+  type: string;
+  sellerName?: string;
+  shopDomain?: string;
+}
+
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [integrations, setIntegrations] = useState<any[]>([]);
+  const [integrations, setIntegrations] = useState<IntegrationStatus[]>([]);
   const [shopDomain, setShopDomain] = useState("");
   const [completed, setCompleted] = useState(false);
 
@@ -19,8 +26,8 @@ export default function OnboardingPage() {
 
   const loadIntegrations = async () => {
     try {
-      const data = await authFetch("/config/status");
-      setIntegrations(data?.integrations || []);
+      const data = (await authFetch("/config/status")) as { integrations?: IntegrationStatus[] };
+      setIntegrations(Array.isArray(data?.integrations) ? data.integrations : []);
       
       // If already has integrations, mark step 1 as complete
       if (data?.integrations?.length > 0) {
@@ -44,8 +51,9 @@ export default function OnboardingPage() {
         // Redirect to Shopify OAuth
         window.location.href = result.installUrl;
       }
-    } catch (err: any) {
-      alert(`Failed to connect: ${err.message || "Unknown error"}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      alert(`Failed to connect: ${message}`);
       setLoading(false);
     }
   };
@@ -84,7 +92,7 @@ export default function OnboardingPage() {
 
         <div className="bg-white rounded-2xl shadow-lg p-8">
           <h1 className="text-3xl font-bold text-slate-900 mb-2">Welcome to LaCleoOmnia</h1>
-          <p className="text-slate-600 mb-8">Let's get your store set up in a few simple steps</p>
+          <p className="text-slate-600 mb-8">Let&apos;s get your store set up in a few simple steps</p>
 
           {/* Progress Steps */}
           <div className="mb-8">
@@ -149,7 +157,7 @@ export default function OnboardingPage() {
                       className="w-full rounded-lg border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     <p className="mt-1 text-xs text-slate-500">
-                      Enter your store domain (e.g., "mystore" or "mystore.myshopify.com")
+                      Enter your store domain (e.g., &quot;mystore&quot; or &quot;mystore.myshopify.com&quot;)
                     </p>
                   </div>
                   <button
@@ -193,7 +201,7 @@ export default function OnboardingPage() {
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                 <p className="text-blue-800 text-sm">
-                  💡 Default warehouse "Main Warehouse" will be created automatically. You can add more warehouses later in Settings.
+                  💡 Default warehouse &quot;Main Warehouse&quot; will be created automatically. You can add more warehouses later in Settings.
                 </p>
               </div>
 
@@ -243,8 +251,9 @@ export default function OnboardingPage() {
                                 body: JSON.stringify({ account_id: integration.id }),
                               });
                               alert("Orders imported successfully!");
-                            } catch (err: any) {
-                              alert(`Import failed: ${err.message}`);
+                            } catch (err: unknown) {
+                              const message = err instanceof Error ? err.message : "Unknown error";
+                              alert(`Import failed: ${message}`);
                             } finally {
                               setLoading(false);
                             }

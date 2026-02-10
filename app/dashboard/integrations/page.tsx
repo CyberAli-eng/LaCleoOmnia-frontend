@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useCallback, useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { authFetch } from "@/utils/api";
 import { appConfig } from "@/utils/config";
@@ -55,6 +55,28 @@ interface Catalog {
   sections: Section[];
 }
 
+interface ProviderStatus {
+  connected?: boolean;
+  name?: string;
+  shop?: string;
+  source?: string;
+  setupConfigured?: boolean;
+  message?: string;
+  [key: string]: unknown;
+}
+
+interface IntegrationStatus {
+  type: string;
+  status?: string;
+  name?: string;
+}
+
+interface ConnectedChannel {
+  id: string;
+  name: string;
+  accountId?: string;
+}
+
 const ERROR_MESSAGES: Record<string, string> = {
   oauth_not_configured: "OAuth is not configured. Please contact support.",
   no_code: "Authorization code not received.",
@@ -104,7 +126,7 @@ function findProviderInCatalog(catalog: Catalog | null, providerId: string): Pro
 function IntegrationsPageContent() {
   const searchParams = useSearchParams();
   const [catalog, setCatalog] = useState<Catalog | null>(null);
-  const [statusByProvider, setStatusByProvider] = useState<Record<string, any>>({});
+  const [statusByProvider, setStatusByProvider] = useState<Record<string, ProviderStatus>>({});
   const [loading, setLoading] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [statusType, setStatusType] = useState<"success" | "error">("success");
@@ -112,40 +134,9 @@ function IntegrationsPageContent() {
   const [showSetupForm, setShowSetupForm] = useState<string | null>(null);
   const [connectFormData, setConnectFormData] = useState<Record<string, string>>({});
   const [guideProvider, setGuideProvider] = useState<Provider | null>(null);
-  const [connectedChannels, setConnectedChannels] = useState<{ id: string; name: string; accountId?: string }[]>([]);
+  const [connectedChannels, setConnectedChannels] = useState<ConnectedChannel[]>([]);
 
-  useEffect(() => {
-    console.log('[DEBUG] Component mounted, loading catalog and connected channels');
-    loadCatalog();
-    authFetch("/integrations/connected-summary")
-      .then((list: any) => {
-        console.log('[DEBUG] Connected channels:', list);
-        setConnectedChannels(Array.isArray(list) ? list : []);
-      })
-      .catch((err) => {
-        console.error('[DEBUG] Failed to load connected channels:', err);
-        setConnectedChannels([]);
-      });
-  }, []);
-
-  useEffect(() => {
-    if (!catalog) return;
-    const connectedId =
-      searchParams?.get("connected") ??
-      (searchParams?.get("shopify") === "connected" ? "SHOPIFY" : null);
-    const error = searchParams?.get("error");
-    if (connectedId) {
-      const provider = findProviderInCatalog(catalog, connectedId);
-      setStatus(provider ? `${provider.name} connected successfully` : "Connected successfully");
-      setStatusType("success");
-      setTimeout(() => loadCatalog(), 500);
-    } else if (error && typeof error === "string") {
-      setStatus(`❌ ${ERROR_MESSAGES[error] ?? `Connection failed: ${error}`}`);
-      setStatusType("error");
-    }
-  }, [searchParams, catalog]);
-
-  const loadCatalog = async () => {
+  const loadCatalog = useCallback(async () => {
     try {
       console.log('[DEBUG] Loading catalog from /integrations/catalog');
       const data = (await authFetch("/integrations/catalog")) as Catalog;
@@ -165,23 +156,54 @@ function IntegrationsPageContent() {
       console.error("Failed to load catalog:", err);
       setCatalog({ sections: [] });
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    console.log('[DEBUG] Component mounted, loading catalog and connected channels');
+    loadCatalog();
+    authFetch("/integrations/connected-summary")
+      .then((list: any) => {
+        console.log('[DEBUG] Connected channels:', list);
+        setConnectedChannels(Array.isArray(list) ? list : []);
+      })
+      .catch((err) => {
+        console.error('[DEBUG] Failed to load connected channels:', err);
+        setConnectedChannels([]);
+      });
+  }, [loadCatalog]);
+
+  useEffect(() => {
+    if (!catalog) return;
+    const connectedId =
+      searchParams?.get("connected") ??
+      (searchParams?.get("shopify") === "connected" ? "SHOPIFY" : null);
+    const error = searchParams?.get("error");
+    if (connectedId) {
+      const provider = findProviderInCatalog(catalog, connectedId);
+      setStatus(provider ? `${provider.name} connected successfully` : "Connected successfully");
+      setStatusType("success");
+      setTimeout(() => loadCatalog(), 500);
+    } else if (error && typeof error === "string") {
+      setStatus(`❌ ${ERROR_MESSAGES[error] ?? `Connection failed: ${error}`}`);
+      setStatusType("error");
+    }
+  }, [searchParams, catalog, loadCatalog]);
 
   const loadProviderStatus = async (provider: Provider) => {
     const endpoint = provider.statusEndpoint;
-    let st: any = {};
+    let st: ProviderStatus = {};
     if (endpoint === "/config/status") {
       try {
-        const configData = (await authFetch("/config/status")) as { integrations?: any[] };
+        const configData = (await authFetch("/config/status")) as { integrations?: IntegrationStatus[] };
         const integrations = configData?.integrations ?? [];
-        const integration = integrations.find((i: any) => i.type === provider.id);
+        const integration = integrations.find((i) => i.type === provider.id);
         st = { connected: integration?.status === "CONNECTED", name: integration?.name };
       } catch {
         st = { connected: false };
       }
     } else if (endpoint) {
       try {
-        const res = (await authFetch(endpoint)) as any;
+        const res = (await authFetch(endpoint)) as ProviderStatus;
         st = res?.connected !== false ? { ...res, connected: true } : { ...res, connected: false };
       } catch {
         st = { connected: false };
@@ -242,8 +264,9 @@ function IntegrationsPageContent() {
         return next;
       });
       refreshProviderStatus(provider.id);
-    } catch (err: any) {
-      setStatus(`Connection failed: ${err?.message ?? "Unknown error"}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      setStatus(`Connection failed: ${message}`);
       setStatusType("error");
     } finally {
       setLoading(null);
@@ -279,8 +302,9 @@ function IntegrationsPageContent() {
         return next;
       });
       refreshProviderStatus(provider.id);
-    } catch (err: any) {
-      setStatus(`Save failed: ${err?.message ?? "Unknown error"}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      setStatus(`Save failed: ${message}`);
       setStatusType("error");
     } finally {
       setLoading(null);
@@ -298,8 +322,9 @@ function IntegrationsPageContent() {
       const url = `${provider.oauthInstallEndpoint!}?${queryKey}=${encodeURIComponent(value.trim())}`;
       const result = (await authFetch(url)) as { installUrl?: string };
       if (result?.installUrl) window.location.href = result.installUrl;
-    } catch (err: any) {
-      setStatus(`OAuth failed: ${err?.message ?? "Please use manual connection"}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Please use manual connection";
+      setStatus(`OAuth failed: ${message}`);
       setStatusType("error");
       setLoading(null);
     }
@@ -313,12 +338,14 @@ function IntegrationsPageContent() {
     try {
       const res = (await authFetch(action.endpoint!, {
         method: (action.method ?? "POST") as RequestInit["method"],
-      })) as any;
-      setStatus((res?.message as string) ?? "Done.");
+      })) as ProviderStatus;
+      const message = typeof res?.message === "string" ? res.message : "Done.";
+      setStatus(message);
       setStatusType("success");
       refreshProviderStatus(provider.id);
-    } catch (err: any) {
-      setStatus(`Failed: ${err?.message ?? "Unknown error"}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      setStatus(`Failed: ${message}`);
       setStatusType("error");
     } finally {
       setLoading(null);

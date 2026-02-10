@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { authFetch, API_BASE_URL } from "@/utils/api";
+import { authFetch } from "@/utils/api";
 import { formatCurrency } from "@/utils/currency";
 import Link from "next/link";
 import { TablePagination } from "@/app/components/TablePagination";
@@ -30,6 +30,14 @@ interface ShipmentRow {
   createdAt: string;
 }
 
+interface OrderSummary {
+  id: string;
+  status?: string;
+  channelOrderId?: string;
+  customerName?: string;
+  orderTotal?: number;
+}
+
 const COURIERS = [
   { id: "shiprocket", name: "Shiprocket", icon: "🚚" },
   { id: "delhivery", name: "Delhivery", icon: "📦" },
@@ -43,7 +51,7 @@ const COURIERS = [
 export default function LabelsPage() {
   const [labels, setLabels] = useState<Label[]>([]);
   const [shipments, setShipments] = useState<ShipmentRow[]>([]);
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [selectedCourier, setSelectedCourier] = useState<string>("shiprocket");
@@ -51,8 +59,6 @@ export default function LabelsPage() {
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [selectedLabel, setSelectedLabel] = useState<Label | null>(null);
   const [generateSuccess, setGenerateSuccess] = useState<{ waybill: string; shippingLabel: string } | null>(null);
-  const [pageLabels, setPageLabels] = useState(1);
-  const [pageSizeLabels, setPageSizeLabels] = useState(10);
   const [pageShipments, setPageShipments] = useState(1);
   const [pageSizeShipments, setPageSizeShipments] = useState(10);
 
@@ -69,7 +75,7 @@ export default function LabelsPage() {
       ]);
       const labelsList = Array.isArray(labelsRes) ? labelsRes : (labelsRes?.labels ?? []);
       setLabels(labelsList);
-      setOrders(Array.isArray(ordersRes?.orders) ? ordersRes.orders : []);
+      setOrders(Array.isArray(ordersRes?.orders) ? (ordersRes.orders as OrderSummary[]) : []);
       const list = Array.isArray(shipmentsRes?.shipments) ? shipmentsRes.shipments : [];
       setShipments(list);
     } catch (err) {
@@ -113,8 +119,11 @@ export default function LabelsPage() {
       if (shippingLabel) {
         window.open(shippingLabel, "_blank");
       }
-    } catch (err: any) {
-      alert(err?.message ?? "Failed to generate Selloship label. Connect Selloship in Integrations → Logistics.");
+    } catch (err: unknown) {
+      const message = err instanceof Error
+        ? err.message
+        : "Failed to generate Selloship label. Connect Selloship in Integrations → Logistics.";
+      alert(message);
     } finally {
       setLoading(false);
     }
@@ -150,34 +159,25 @@ export default function LabelsPage() {
       setShowGenerateModal(false);
       setSelectedOrderId(null);
       setAwbNumber("");
-    } catch (err: any) {
-      alert(`Failed to generate label: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to generate label";
+      alert(`Failed to generate label: ${message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const printLabel = (label: Label) => {
-    // Open backend label print endpoint (same origin as API)
-    window.open(`${API_BASE_URL}/labels/${label.id}/print`, "_blank");
-  };
-
-  const downloadInvoice = (orderId: string) => {
-    // Open backend invoice endpoint (same origin as API)
-    window.open(`${API_BASE_URL}/orders/${orderId}/invoice`, "_blank");
-  };
-
   const totalLabels = labels.length;
   const pendingLabels = labels.filter((l) => l.status === "PENDING").length;
   const shippedLabels = labels.filter((l) => l.status !== "PENDING").length;
-  const paginatedLabels = useMemo(() => {
-    const start = (pageLabels - 1) * pageSizeLabels;
-    return labels.slice(start, start + pageSizeLabels);
-  }, [labels, pageLabels, pageSizeLabels]);
   const paginatedShipments = useMemo(() => {
     const start = (pageShipments - 1) * pageSizeShipments;
     return shipments.slice(start, start + pageSizeShipments);
   }, [shipments, pageShipments, pageSizeShipments]);
+
+  const shipmentByOrderId = useMemo(() => {
+    return new Map(shipments.map((s) => [s.orderId, s]));
+  }, [shipments]);
 
   return (
     <div className="space-y-6">
@@ -226,7 +226,7 @@ export default function LabelsPage() {
               </tr>
             </thead>
             <tbody>
-              {paginatedLabels.map((label) => (
+              {labels.map((label) => (
                 <tr key={label.id} className="border-b border-slate-100 hover:bg-slate-50">
                   <td className="py-3 px-4">
                     <Link
@@ -258,18 +258,36 @@ export default function LabelsPage() {
                   </td>
                   <td className="py-3 px-4">
                     <div className="flex items-center justify-center gap-2">
-                      <button
-                        onClick={() => printLabel(label)}
-                        className="text-blue-600 hover:text-blue-700 text-xs font-medium"
-                      >
-                        Print
-                      </button>
-                      <button
-                        onClick={() => downloadInvoice(label.orderId)}
-                        className="text-purple-600 hover:text-purple-700 text-xs font-medium"
-                      >
-                        Invoice
-                      </button>
+                      {(() => {
+                        const shipment = shipmentByOrderId.get(label.orderId);
+                        const labelUrl = shipment?.labelUrl;
+                        const trackingUrl = shipment?.trackingUrl;
+                        if (labelUrl) {
+                          return (
+                            <a
+                              href={labelUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-blue-600 hover:text-blue-700 text-xs font-medium"
+                            >
+                              Label
+                            </a>
+                          );
+                        }
+                        if (trackingUrl) {
+                          return (
+                            <a
+                              href={trackingUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-blue-600 hover:text-blue-700 text-xs font-medium"
+                            >
+                              Track
+                            </a>
+                          );
+                        }
+                        return <span className="text-slate-400 text-xs">No label</span>;
+                      })()}
                       <button
                         onClick={() => setSelectedLabel(label)}
                         className="text-slate-600 hover:text-slate-700 text-xs font-medium"
@@ -524,19 +542,39 @@ export default function LabelsPage() {
                   </p>
                 </div>
               </div>
-              <div className="flex gap-3 pt-4 border-t border-slate-200">
-                <button
-                  onClick={() => printLabel(selectedLabel)}
-                  className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-                >
-                  Print Label
-                </button>
-                <button
-                  onClick={() => downloadInvoice(selectedLabel.orderId)}
-                  className="flex-1 rounded-lg border border-blue-600 px-4 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50"
-                >
-                  Download Invoice
-                </button>
+              <div className="flex gap-3 pt-4 border-t border-slate-200 items-center">
+                {(() => {
+                  const shipment = shipmentByOrderId.get(selectedLabel.orderId);
+                  const labelUrl = shipment?.labelUrl;
+                  const trackingUrl = shipment?.trackingUrl;
+                  if (labelUrl) {
+                    return (
+                      <a
+                        href={labelUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 text-center"
+                      >
+                        Open Label
+                      </a>
+                    );
+                  }
+                  if (trackingUrl) {
+                    return (
+                      <a
+                        href={trackingUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex-1 rounded-lg border border-blue-600 px-4 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50 text-center"
+                      >
+                        Track Shipment
+                      </a>
+                    );
+                  }
+                  return (
+                    <span className="text-slate-500 text-sm">No label or tracking URL available.</span>
+                  );
+                })()}
               </div>
             </div>
           </div>

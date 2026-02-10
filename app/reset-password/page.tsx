@@ -15,8 +15,8 @@ function ResetPasswordForm() {
     const [message, setMessage] = useState("");
     const [token, setToken] = useState(tokenFromUrl);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = async (e?: React.SyntheticEvent) => {
+        e?.preventDefault();
         if (password !== confirm) {
             setMessage("Passwords do not match.");
             setStatus("error");
@@ -56,7 +56,10 @@ function ResetPasswordForm() {
         }
     };
 
-    if (!tokenFromUrl && status === "idle") {
+    // If there is no token in the URL, show a form that lets the user paste it manually.
+    // We intentionally do NOT narrow on `status` here so that TypeScript doesn't treat it as `"idle"` only,
+    // which keeps the status comparisons in this branch type-safe.
+    if (!tokenFromUrl) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12">
                 <div className="w-full max-w-md space-y-6 bg-white p-10 rounded-2xl shadow-xl border border-slate-100">
@@ -110,7 +113,9 @@ function ResetPasswordForm() {
                     )}
                     <button
                         type="button"
-                        onClick={handleSubmit}
+                        onClick={() => {
+                            void handleSubmit();
+                        }}
                         disabled={status === "loading" || !token.trim() || !password || !confirm}
                         className="w-full rounded-lg bg-blue-600 px-3 py-3 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-50"
                     >
