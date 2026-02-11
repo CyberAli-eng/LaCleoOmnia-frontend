@@ -13,7 +13,7 @@ export default function ConditionalLayout({
   const isDashboard = pathname?.startsWith("/dashboard");
 
   return (
-    <>
+    <div className="min-h-screen flex flex-col">
       {!isDashboard && <Header />}
       <main className="flex-1">{children}</main>
       {!isDashboard && (
@@ -41,6 +41,6 @@ export default function ConditionalLayout({
           </div>
         </footer>
       )}
-    </>
+    </div>
   );
 }

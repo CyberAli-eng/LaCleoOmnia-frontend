@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { MenuSection } from "./MenuSection";
 import { useUIStore } from "@/src/stores/uiStore";
-import { useAuthStore } from "@/src/stores/authStore";
+import { useAuthStore, type AuthState } from "@/src/stores/authStore";
 import { authFetch } from "@/utils/api";
 import { cn } from "@/src/lib/utils";
 import { navigationConfig } from "@/src/constants/navigation";
@@ -24,7 +24,7 @@ export function Sidebar() {
     closeAllSubmenus,
   } = useUIStore();
 
-  const user = useAuthStore((state) => state.user);
+  const user = useAuthStore((state: AuthState) => state.user);
   const [connectedChannels, setConnectedChannels] = useState<ConnectedChannel[]>([]);
 
   // Close submenus when sidebar is collapsed
@@ -151,7 +151,7 @@ export function Sidebar() {
             ))}
           </div>
 
-          {/* Quick Actions - hide when collapsed */}
+          {/* Quick Actions - hide when collapsed
           {!sidebarCollapsed && (
             <div className="px-6 pt-6 border-t border-slate-200 shrink-0">
               <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Quick Actions</p>
@@ -187,7 +187,7 @@ export function Sidebar() {
                 </button>
               </div>
             </div>
-          )}
+          )} */}
 
           {/* User info - bottom */}
           {!sidebarCollapsed && user && (
