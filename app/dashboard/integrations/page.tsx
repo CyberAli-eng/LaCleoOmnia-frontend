@@ -174,6 +174,13 @@ function IntegrationsPageContent() {
                 { id: "sync", label: "Sync Payments", endpoint: "/api/razorpay/sync/payments" },
                 { id: "sync_settlements", label: "Sync Settlements", endpoint: "/api/razorpay/sync/settlements" }
               ],
+              setupSteps: [
+                { step: 1, title: "Get Razorpay API Keys", description: "Log in to your Razorpay dashboard and navigate to Settings → API Keys. Generate a new key pair for your production environment." },
+                { step: 2, title: "Configure Webhooks", description: "In Razorpay dashboard, go to Settings → Webhooks and add your webhook URL to receive payment events and settlement notifications." },
+                { step: 3, title: "Connect to LaCleoOmnia", description: "Enter your Key ID, Key Secret, and Webhook Secret in the connection form below to establish the integration." },
+                { step: 4, title: "Test Connection", description: "Click 'Test Connection' to verify your API credentials are working correctly." },
+                { step: 5, title: "Sync Historical Data", description: "Use 'Sync Payments' and 'Sync Settlements' to import your transaction history." }
+              ],
               description: "Razorpay payment gateway for prepaid orders with automatic settlement tracking and fee calculation."
             });
           }

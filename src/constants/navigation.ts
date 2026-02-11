@@ -12,7 +12,6 @@ import {
   Users,
   TrendingUp,
   AlertTriangle,
-  CreditCard,
 } from "lucide-react";
 import { NavigationConfig } from "@/src/types/navigation.types";
 
@@ -82,13 +81,6 @@ export const navigationConfig: NavigationConfig = {
           href: "/dashboard/webhooks",
           icon: Webhook,
           pattern: "^/dashboard/webhooks",
-        },
-        {
-          id: "razorpay",
-          label: "Razorpay",
-          href: "/dashboard/razorpay",
-          icon: CreditCard,
-          pattern: "^/dashboard/razorpay",
         },
       ],
     },
