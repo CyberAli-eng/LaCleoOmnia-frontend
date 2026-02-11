@@ -150,46 +150,6 @@ function IntegrationsPageContent() {
       const data = (await authFetch("/integrations/catalog")) as Catalog;
       console.log('[DEBUG] Catalog loaded:', data);
       
-      // Add Razorpay to catalog if not present
-      if (data?.sections) {
-        const paymentsSection = data.sections.find(s => s.id === "payments");
-        if (paymentsSection) {
-          const hasRazorpay = paymentsSection.providers.some(p => p.id === "razorpay");
-          if (!hasRazorpay) {
-            paymentsSection.providers.push({
-              id: "razorpay",
-              name: "Razorpay",
-              icon: "💳",
-              color: "purple",
-              connectType: "api_key",
-              statusEndpoint: "/api/razorpay/status",
-              connectEndpoint: "/api/razorpay/connect",
-              connectFormFields: [
-                { key: "key_id", label: "Key ID", type: "text" },
-                { key: "key_secret", label: "Key Secret", type: "password" },
-                { key: "webhook_secret", label: "Webhook Secret", type: "password" }
-              ],
-              actions: [
-                { id: "test", label: "Test Connection", endpoint: "/api/razorpay/status", primary: true },
-                { id: "sync", label: "Sync Payments", endpoint: "/api/razorpay/sync/payments" },
-                { id: "sync_settlements", label: "Sync Settlements", endpoint: "/api/razorpay/sync/settlements" }
-              ],
-              setupSteps: [
-                { step: 1, title: "Get Razorpay API Keys", description: "Log in to your Razorpay dashboard and navigate to Settings → API Keys. Generate a new key pair for your production environment." },
-                { step: 2, title: "Configure Webhooks", description: "In Razorpay dashboard, go to Settings → Webhooks and add your webhook URL to receive payment events and settlement notifications." },
-                { step: 3, title: "Connect to LaCleoOmnia", description: "Enter your Key ID, Key Secret, and Webhook Secret in the connection form below to establish the integration." },
-                { step: 4, title: "Test Connection", description: "Click 'Test Connection' to verify your API credentials are working correctly." },
-                { step: 5, title: "Sync Historical Data", description: "Use 'Sync Payments' and 'Sync Settlements' to import your transaction history." }
-              ],
-              description: "Razorpay payment gateway for prepaid orders with automatic settlement tracking and fee calculation."
-            });
-          }
-        }
-        
-        // Remove warehouse section if present
-        data.sections = data.sections.filter(section => section.id !== "warehouse");
-      }
-      
       setCatalog(data || { sections: [] });
       if (data?.sections) {
         console.log('[DEBUG] Loading provider statuses for', data.sections.length, 'sections');
