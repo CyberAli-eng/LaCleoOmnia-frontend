@@ -10,6 +10,9 @@ import {
   Tag,
   FileText,
   Users,
+  TrendingUp,
+  AlertTriangle,
+  CreditCard,
 } from "lucide-react";
 import { NavigationConfig } from "@/src/types/navigation.types";
 
@@ -46,6 +49,20 @@ export const navigationConfig: NavigationConfig = {
           icon: DollarSign,
           pattern: "^/dashboard/costs",
         },
+        {
+          id: "pnl",
+          label: "Profit & Loss",
+          href: "/dashboard/pnl",
+          icon: TrendingUp,
+          pattern: "^/dashboard/pnl",
+        },
+        {
+          id: "risk",
+          label: "Risk Management",
+          href: "/dashboard/risk",
+          icon: AlertTriangle,
+          pattern: "^/dashboard/risk",
+        },
       ],
     },
     {
@@ -65,6 +82,13 @@ export const navigationConfig: NavigationConfig = {
           href: "/dashboard/webhooks",
           icon: Webhook,
           pattern: "^/dashboard/webhooks",
+        },
+        {
+          id: "razorpay",
+          label: "Razorpay",
+          href: "/dashboard/razorpay",
+          icon: CreditCard,
+          pattern: "^/dashboard/razorpay",
         },
       ],
     },
@@ -92,6 +116,27 @@ export const navigationConfig: NavigationConfig = {
           href: "/dashboard/workers",
           icon: Settings,
           pattern: "^/dashboard/workers",
+        },
+        {
+          id: "ads",
+          label: "Ad Management",
+          href: "/dashboard/ads",
+          icon: BarChart3,
+          pattern: "^/dashboard/ads",
+        },
+        {
+          id: "labels",
+          label: "Labels",
+          href: "/dashboard/labels",
+          icon: Tag,
+          pattern: "^/dashboard/labels",
+        },
+        {
+          id: "settings",
+          label: "Settings",
+          href: "/dashboard/settings",
+          icon: Settings,
+          pattern: "^/dashboard/settings",
         },
       ],
     },

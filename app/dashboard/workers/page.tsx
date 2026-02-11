@@ -3,17 +3,21 @@
 import { useEffect, useState, useMemo } from "react";
 import { authFetch } from "@/utils/api";
 import { TablePagination } from "@/app/components/TablePagination";
+import { RefreshCw, Play, Pause, CheckCircle, AlertCircle, Clock, Settings } from "lucide-react";
 
 interface ConnectedChannel {
   id: string;
   name: string;
   accountId?: string;
+  lastSync?: string;
+  status?: "connected" | "error" | "syncing";
 }
 
 interface SyncJob {
   id: string;
   type: string;
-  status: string;
+  status: "running" | "completed" | "failed" | "paused";
+  progress?: number;
   attempts: number;
   lastError?: string | null;
   createdAt: string | null;
