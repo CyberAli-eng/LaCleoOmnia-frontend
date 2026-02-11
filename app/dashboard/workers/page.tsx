@@ -16,7 +16,7 @@ interface ConnectedChannel {
 interface SyncJob {
   id: string;
   type: string;
-  status: "running" | "completed" | "failed" | "paused";
+  status: "running" | "completed" | "failed" | "paused" | "QUEUED" | "PENDING" | "RUNNING" | "PROCESSING" | "SUCCESS" | "COMPLETED" | "FAILED";
   progress?: number;
   attempts: number;
   lastError?: string | null;
@@ -93,18 +93,110 @@ export default function WorkersPage() {
     }
   };
 
-  const triggerSyncShipments = async (channelId: string) => {
-    setLoading(`shipments-${channelId}`);
+  const triggerSyncShipments = async () => {
+    setLoading("shipments-global");
     setMessage(null);
     try {
-      const res = await authFetch("/shipments/sync", { method: "POST" }) as { message?: string; synced?: number };
-      setMessage({
-        text: res?.message ?? `Synced ${res?.synced ?? 0} shipments.`,
-        type: "success",
-      });
+      // Use new dynamic sync endpoint
+      const res = await authFetch("/sync/shipments", { method: "POST" }) as { 
+        success: boolean; 
+        message?: string; 
+        data?: { shipments_synced: number; sync_result: any }
+      };
+      
+      if (res.success) {
+        const synced = res.data?.shipments_synced || 0;
+        setMessage({
+          text: res.message ?? `Successfully synced ${synced} shipments.`,
+          type: "success",
+        });
+      } else {
+        setMessage({
+          text: res.message || "Shipment sync failed.",
+          type: "error",
+        });
+      }
+      
       await loadJobs();
+      await loadChannels(); // Refresh to show updated last sync
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Shipment sync failed.";
+      setMessage({ text: message, type: "error" });
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const triggerDynamicShopifySync = async () => {
+    setLoading("shopify-dynamic");
+    setMessage(null);
+    try {
+      const res = await authFetch("/sync/shopify", { method: "POST" }) as {
+        success: boolean;
+        message?: string;
+        data?: {
+          stats: {
+            orders_processed: number;
+            shipments_created: number;
+            shipments_updated: number;
+            tracking_numbers_found: number;
+            selloship_shipments: number;
+          };
+        };
+      };
+      
+      if (res.success) {
+        const stats = res.data?.stats;
+        setMessage({
+          text: `Shopify sync completed! Processed ${stats?.orders_processed || 0} orders, created ${stats?.shipments_created || 0} shipments, found ${stats?.tracking_numbers_found || 0} tracking numbers.`,
+          type: "success",
+        });
+      } else {
+        setMessage({
+          text: res.message || "Shopify sync failed.",
+          type: "error",
+        });
+      }
+      
+      await loadJobs();
+      await loadChannels(); // Refresh to show updated last sync
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Shopify sync failed.";
+      setMessage({ text: message, type: "error" });
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const triggerFullSync = async () => {
+    setLoading("full-sync");
+    setMessage(null);
+    try {
+      const res = await authFetch("/sync/full", { method: "POST" }) as {
+        success: boolean;
+        message?: string;
+        data?: {
+          shopify_sync: any;
+          shipment_sync: any;
+        };
+      };
+      
+      if (res.success) {
+        setMessage({
+          text: "Full sync completed! Shopify orders and shipment status updated.",
+          type: "success",
+        });
+      } else {
+        setMessage({
+          text: res.message || "Full sync failed.",
+          type: "error",
+        });
+      }
+      
+      await loadJobs();
+      await loadChannels(); // Refresh to show updated last sync
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Full sync failed.";
       setMessage({ text: message, type: "error" });
     } finally {
       setLoading(null);
@@ -201,6 +293,45 @@ export default function WorkersPage() {
         ))}
       </div>
 
+      {/* NEW: Dynamic Sync Section */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-900 mb-1">Dynamic Shopify Sync</h2>
+        <p className="text-sm text-slate-600 mb-6">
+          Fetch ALL orders from Shopify with tracking numbers and sync shipment status automatically.
+        </p>
+        <div className="grid gap-4 md:grid-cols-3">
+          <button
+            type="button"
+            onClick={triggerDynamicShopifySync}
+            disabled={!!loading}
+            className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {loading === "shopify-dynamic" ? "Syncing..." : "Sync Shopify Orders"}
+          </button>
+          <button
+            type="button"
+            onClick={triggerSyncShipments}
+            disabled={!!loading}
+            className="rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {loading?.startsWith("shipments-") ? "Syncing..." : "Sync Shipments"}
+          </button>
+          <button
+            type="button"
+            onClick={triggerFullSync}
+            disabled={!!loading}
+            className="rounded-lg bg-purple-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {loading === "full-sync" ? "Full Sync..." : "Full Sync"}
+          </button>
+        </div>
+        <div className="mt-4 text-xs text-slate-500">
+          <p><strong>Sync Shopify Orders:</strong> Fetches all orders (fulfilled + unfulfilled) with tracking numbers</p>
+          <p><strong>Sync Shipments:</strong> Updates shipment status from couriers (Selloship, etc.)</p>
+          <p><strong>Full Sync:</strong> Runs both Shopify and shipment sync together</p>
+        </div>
+      </div>
+
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900 mb-1">Channel sync</h2>
         <p className="text-sm text-slate-600 mb-6">
@@ -238,7 +369,7 @@ export default function WorkersPage() {
                     {isLogisticsOnly ? (
                       <button
                         type="button"
-                        onClick={() => triggerSyncShipments(ch.id, ch.name)}
+                        onClick={() => triggerSyncShipments()}
                         disabled={!!loading}
                         className="w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
@@ -247,7 +378,7 @@ export default function WorkersPage() {
                     ) : (
                       <button
                         type="button"
-                        onClick={() => triggerSyncOrders(ch.id, ch.accountId, ch.name)}
+                        onClick={() => triggerSyncOrders(ch.id, ch.accountId)}
                         disabled={!!loading}
                         className="w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
@@ -257,7 +388,7 @@ export default function WorkersPage() {
                     {hasInventorySync && (
                       <button
                         type="button"
-                        onClick={() => triggerSyncInventory(ch.id, ch.name)}
+                        onClick={() => triggerSyncInventory(ch.id)}
                         disabled={!!loading}
                         className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
