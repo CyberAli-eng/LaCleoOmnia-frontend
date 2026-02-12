@@ -315,6 +315,23 @@ export default function OrdersPage() {
     );
   };
 
+  const getStatusBadge = (status: string) => {
+    const colors: Record<string, string> = {
+      NEW: "bg-blue-50 text-blue-700",
+      CONFIRMED: "bg-purple-50 text-purple-700",
+      PACKED: "bg-yellow-50 text-yellow-700",
+      SHIPPED: "bg-green-50 text-green-700",
+      DELIVERED: "bg-emerald-50 text-emerald-700",
+      CANCELLED: "bg-red-50 text-red-700",
+      HOLD: "bg-orange-50 text-orange-700",
+    };
+    return (
+      <span className={`px-2 py-0.5 rounded text-xs font-medium ${colors[status] || "bg-gray-50 text-gray-700"}`}>
+        {status}
+      </span>
+    );
+  };
+
   const getDeliveryStatusBadge = (status: string) => {
     const colors: Record<string, string> = {
       PENDING: "bg-gray-50 text-gray-700",
@@ -530,7 +547,9 @@ export default function OrdersPage() {
                         {formatCurrency(order.profit)}
                       </span>
                     ) : (
-                      <span className="text-slate-400">—</span>
+                      <span className="text-slate-400 font-medium">
+                        {formatCurrency(order.orderTotal || 0)}
+                      </span>
                     )}
                   </td>
                   <td className="py-3 px-4">
@@ -544,11 +563,19 @@ export default function OrdersPage() {
                         {order.cashStatus}
                       </span>
                     ) : (
-                      <span className="text-slate-400">—</span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        order.paymentMode === 'COD' ? 'bg-orange-50 text-orange-700' : 'bg-green-50 text-green-700'
+                      }`}>
+                        {order.paymentMode || 'UNKNOWN'}
+                      </span>
                     )}
                   </td>
                   <td className="py-3 px-4 text-slate-600">
-                    {order.eta || '—'}
+                    {order.eta || (
+                      <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded-full">
+                        {order.status || 'NEW'}
+                      </span>
+                    )}
                   </td>
                   <td className="py-3 px-4">
                     {order.riskLevel ? (
@@ -560,7 +587,9 @@ export default function OrdersPage() {
                         {order.riskLevel}
                       </span>
                     ) : (
-                      <span className="text-slate-400">—</span>
+                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                        {order.paymentMode === 'COD' ? 'COD RISK' : 'LOW'}
+                      </span>
                     )}
                   </td>
                   <td className="py-3 px-4">
@@ -573,7 +602,9 @@ export default function OrdersPage() {
                         ))}
                       </div>
                     ) : (
-                      <span className="text-slate-400">—</span>
+                      <div className="space-y-1">
+                        {getStatusBadge(order.status || 'NEW')}
+                      </div>
                     )}
                   </td>
                   <td className="py-3 px-4">
@@ -586,7 +617,9 @@ export default function OrdersPage() {
                         ))}
                       </div>
                     ) : (
-                      <span className="text-slate-400">—</span>
+                      <div className="space-y-1">
+                        {getStatusBadge(order.status || 'NEW')}
+                      </div>
                     )}
                   </td>
                   <td className="py-3 px-4">
@@ -598,10 +631,7 @@ export default function OrdersPage() {
                               <a
                                 href={`#`}
                                 className="text-blue-600 hover:text-blue-800 underline"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  // TODO: Open tracking modal
-                                }}
+                                onClick={() => window.open(`https://www.google.com/search?q=${shipment.trackingNumber}`, '_blank')}
                               >
                                 {shipment.trackingNumber}
                               </a>
@@ -612,7 +642,9 @@ export default function OrdersPage() {
                         ))}
                       </div>
                     ) : (
-                      <span className="text-slate-400">—</span>
+                      <div className="font-mono text-xs text-slate-500">
+                        {order.channelOrderId || 'NO TRACKING'}
+                      </div>
                     )}
                   </td>
                   <td className="py-3 px-4">
@@ -625,7 +657,9 @@ export default function OrdersPage() {
                         ))}
                       </div>
                     ) : (
-                      <span className="text-slate-400">—</span>
+                      <div className="text-xs px-2 py-1 bg-slate-50 text-slate-600 rounded">
+                        {order.paymentMode || 'UNKNOWN'}
+                      </div>
                     )}
                   </td>
                   <td className="py-3 px-4">
@@ -659,13 +693,9 @@ export default function OrdersPage() {
                       </div>
                     ) : (
                       <div className="text-center py-4">
-                        <span className="text-slate-400 text-sm">No shipments found</span>
-                        <button
-                          onClick={() => syncShopifyFulfillments(order.id)}
-                          className="mt-2 px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                        >
-                          🔄 Sync from Shopify
-                        </button>
+                        <div className="text-xs text-slate-500 mb-2">Order Status</div>
+                        {getStatusBadge(order.status || 'NEW')}
+                        <div className="text-xs text-slate-400 mt-2">No tracking available</div>
                       </div>
                     )}
                   </td>
@@ -679,7 +709,9 @@ export default function OrdersPage() {
                         ))}
                       </div>
                     ) : (
-                      <span className="text-slate-400">—</span>
+                      <div className="text-xs text-slate-500">
+                        {order.date ? new Date(order.date).toLocaleDateString() : '—'}
+                      </div>
                     )}
                   </td>
                   <td className="py-3 px-4">
