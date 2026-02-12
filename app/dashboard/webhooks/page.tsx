@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { authFetch } from "@/utils/api";
 import { GuideDrawer } from "@/app/components/GuideDrawer";
+import { useRealtime, WebhookEvent as RealtimeWebhookEvent } from "@/src/services/realtime";
 
 interface WebhookEvent {
   id: string;
@@ -39,13 +40,74 @@ export default function WebhooksPage() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
   const [guideOpen, setGuideOpen] = useState(false);
+  const [realtimeEnabled, setRealtimeEnabled] = useState(true);
+
+  // Real-time updates
+  const { isConnected, subscribeToWebhookEvents } = useRealtime();
+
+  // Memoize unique sources for performance
+  const uniqueSources = useMemo(() => {
+    return Array.from(new Set(events.map((e) => e.source).filter(Boolean))).sort();
+  }, [events]);
+
+  // Memoize filtered events for performance
+  const filteredEvents = useMemo(() => {
+    return events.filter((event) => {
+      const matchesStatus = filterStatus === "all" || event.status === filterStatus;
+      const matchesSource = filterSource === "all" || event.source === filterSource;
+      return matchesStatus && matchesSource;
+    });
+  }, [events, filterStatus, filterSource]);
+
+  // Handle filter changes with pagination reset
+  const handleStatusFilterChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFilterStatus(e.target.value);
+    setPage(1);
+  }, []);
+
+  const handleSourceFilterChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFilterSource(e.target.value);
+    setPage(1);
+  }, []);
 
   useEffect(() => {
     loadData();
   }, []);
+
+  // Subscribe to real-time webhook events
   useEffect(() => {
-    setPage(1);
-  }, [filterStatus, filterSource]);
+    if (!realtimeEnabled) return;
+
+    const unsubscribe = subscribeToWebhookEvents((webhookEvent: RealtimeWebhookEvent) => {
+      // Convert realtime event to local format
+      const newEvent: WebhookEvent = {
+        id: webhookEvent.id,
+        source: webhookEvent.source,
+        shopDomain: webhookEvent.shopDomain,
+        topic: webhookEvent.topic,
+        payloadSummary: webhookEvent.payloadSummary,
+        status: webhookEvent.status === "processed" ? "success" : 
+                webhookEvent.status === "failed" ? "failed" : "pending",
+        createdAt: webhookEvent.createdAt,
+        processedAt: webhookEvent.processedAt,
+        error: webhookEvent.error,
+        receivedAt: webhookEvent.createdAt, // Map createdAt to receivedAt for compatibility
+      };
+
+      // Add new event to beginning of list, preventing duplicates
+      setEvents(prev => {
+        // Check if event already exists to prevent duplicates
+        if (prev.some(e => e.id === newEvent.id)) {
+          return prev;
+        }
+        
+        const updated = [newEvent, ...prev];
+        return updated.slice(0, 50); // Keep only last 50 events
+      });
+    });
+
+    return unsubscribe;
+  }, [realtimeEnabled, subscribeToWebhookEvents]);
 
   const loadData = async () => {
     try {
@@ -57,10 +119,10 @@ export default function WebhooksPage() {
         ? (eventsData as WebhookEvent[])
         : ((eventsData as { events?: WebhookEvent[] })?.events ?? []);
       setEvents(
-        rawEvents.map((event) => ({
+        rawEvents.map((event): WebhookEvent => ({
           ...event,
           eventType: event.topic ?? event.eventType,
-          receivedAt: event.createdAt ?? event.receivedAt,
+          receivedAt: event.createdAt || event.receivedAt || undefined,
           status: event.error ? "failed" : event.processedAt ? "success" : "pending",
         }))
       );
@@ -109,11 +171,6 @@ export default function WebhooksPage() {
     }
   };
 
-  const filteredEvents = events.filter((event) => {
-    const matchesStatus = filterStatus === "all" || event.status === filterStatus;
-    const matchesSource = filterSource === "all" || event.source === filterSource;
-    return matchesStatus && matchesSource;
-  });
   const paginatedEvents = useMemo(() => {
     const start = (page - 1) * pageSize;
     return filteredEvents.slice(start, start + pageSize);
@@ -131,6 +188,24 @@ export default function WebhooksPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Webhooks</h1>
           <p className="mt-1 text-sm text-slate-600">Monitor webhook events and subscriptions</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`} />
+            <span className="text-sm text-slate-600">
+              {isConnected ? "Live" : "Offline"}
+            </span>
+          </div>
+          <button
+            onClick={() => setRealtimeEnabled(!realtimeEnabled)}
+            className={`px-3 py-1.5 text-sm font-medium rounded-lg border ${
+              realtimeEnabled 
+                ? "bg-green-50 text-green-700 border-green-200" 
+                : "bg-slate-50 text-slate-700 border-slate-200"
+            }`}
+          >
+            {realtimeEnabled ? "Real-time ON" : "Real-time OFF"}
+          </button>
         </div>
       </div>
 
@@ -221,7 +296,7 @@ export default function WebhooksPage() {
           <div className="flex gap-2">
             <select
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
+              onChange={handleStatusFilterChange}
               className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Status</option>
@@ -231,11 +306,11 @@ export default function WebhooksPage() {
             </select>
             <select
               value={filterSource}
-              onChange={(e) => setFilterSource(e.target.value)}
+              onChange={handleSourceFilterChange}
               className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All channels</option>
-              {Array.from(new Set(events.map((e) => e.source).filter(Boolean))).sort().map((src) => (
+              {uniqueSources.map((src) => (
                 <option key={src} value={src}>{src}</option>
               ))}
             </select>
@@ -275,7 +350,7 @@ export default function WebhooksPage() {
                     </span>
                   </td>
                   <td className="py-3 px-4 text-slate-600">
-                    {new Date(event.createdAt ?? event.receivedAt ?? 0).toLocaleString()}
+                    {new Date(event.createdAt || event.receivedAt || Date.now()).toLocaleString()}
                   </td>
                   <td className="py-3 px-4">
                     <div className="flex items-center justify-center gap-2">
@@ -346,7 +421,7 @@ export default function WebhooksPage() {
                 </div>
                 <div>
                   <p className="text-xs text-slate-500">Received At</p>
-                  <p className="mt-1 text-slate-600">{new Date((selectedEvent.createdAt ?? selectedEvent.receivedAt) ?? "").toLocaleString()}</p>
+                  <p className="mt-1 text-slate-600">{new Date(selectedEvent.createdAt || selectedEvent.receivedAt || Date.now()).toLocaleString()}</p>
                 </div>
               </div>
               {selectedEvent.error && (
@@ -355,12 +430,22 @@ export default function WebhooksPage() {
                   <p className="text-sm text-red-700">{selectedEvent.error}</p>
                 </div>
               )}
-              {(selectedEvent.payloadSummary || selectedEvent.payload) && (
+              {selectedEvent.payloadSummary && (
                 <div>
                   <p className="text-sm font-medium text-slate-900 mb-2">Payload summary</p>
-                  <p className="text-sm text-slate-600">
-                    {selectedEvent.payloadSummary ?? (typeof selectedEvent.payload === "string" ? selectedEvent.payload : JSON.stringify(selectedEvent.payload, null, 2))}
-                  </p>
+                  <div className="text-sm text-slate-600">
+                    {selectedEvent.payloadSummary}
+                  </div>
+                </div>
+              )}
+              {selectedEvent.payload && !selectedEvent.payloadSummary && (
+                <div>
+                  <p className="text-sm font-medium text-slate-900 mb-2">Payload</p>
+                  <div className="text-sm text-slate-600">
+                    <pre className="whitespace-pre-wrap text-xs bg-slate-50 p-2 rounded">
+                      {JSON.stringify(selectedEvent.payload, null, 2)}
+                    </pre>
+                  </div>
                 </div>
               )}
               {selectedEvent.status === "failed" && (

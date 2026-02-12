@@ -86,7 +86,11 @@ interface OrderFinanceDrawerProps {
   onClose: () => void;
 }
 
-// Refresh shipment status function
+export default function OrderFinanceDrawer({ orderId, isOpen, onClose }: OrderFinanceDrawerProps) {
+  const [orderFinance, setOrderFinance] = useState<OrderFinance | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Refresh shipment status function
   const refreshShipmentStatus = async (trackingNumber: string, orderData: OrderFinance | null) => {
     try {
       const response = await authFetch(`/shipments/v2/sync/status/${trackingNumber}`, {
@@ -106,10 +110,6 @@ interface OrderFinanceDrawerProps {
       console.error(`Error refreshing shipment status:`, error);
     }
   };
-
-export default function OrderFinanceDrawer({ orderId, isOpen, onClose }: OrderFinanceDrawerProps) {
-  const [orderFinance, setOrderFinance] = useState<OrderFinance | null>(null);
-  const [loading, setLoading] = useState(true);
 
   const loadOrderFinance = useCallback(async () => {
     setLoading(true);
@@ -412,7 +412,12 @@ export default function OrderFinanceDrawer({ orderId, isOpen, onClose }: OrderFi
                       {orderFinance?.shipments && orderFinance.shipments.length > 0 && (
                         <div className="border-t border-slate-200 pt-3 mt-3">
                           <button
-                            onClick={() => refreshShipmentStatus(orderFinance.shipments[0].trackingNumber)}
+                            onClick={() => {
+  const trackingNumber = orderFinance.shipments?.[0]?.trackingNumber;
+  if (trackingNumber) {
+    refreshShipmentStatus(trackingNumber, orderFinance);
+  }
+}}
                             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
                           >
                             🔄 Refresh Shipment Status

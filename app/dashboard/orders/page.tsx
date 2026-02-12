@@ -5,6 +5,7 @@ import { authFetch } from "@/utils/api";
 import { formatCurrency } from "@/utils/currency";
 import Link from "next/link";
 import { TablePagination } from "@/app/components/TablePagination";
+import { useRealtime, OrderUpdate } from "@/src/services/realtime";
 
 interface Order {
   id: string;
@@ -79,10 +80,44 @@ export default function OrdersPage() {
   const [financeDrawerOrderId, setFinanceDrawerOrderId] = useState<string | null>(null);
   const [financeOrderDetail, setFinanceOrderDetail] = useState<Record<string, unknown> | null>(null);
   const [financeDrawerLoading, setFinanceDrawerLoading] = useState(false);
+  const [realtimeEnabled, setRealtimeEnabled] = useState(true);
+
+  // Real-time updates
+  const { isConnected, subscribeToOrderUpdates } = useRealtime();
 
   useEffect(() => {
     loadOrders();
   }, []);
+
+  // Subscribe to real-time order updates
+  useEffect(() => {
+    if (!realtimeEnabled) return;
+
+    const unsubscribe = subscribeToOrderUpdates((orderUpdate: OrderUpdate) => {
+      // Update the order in the local state if it exists
+      setOrders(prev => prev.map(order => {
+        if (order.id === orderUpdate.orderId) {
+          return {
+            ...order,
+            status: orderUpdate.status,
+            // You might want to refresh the entire order data for more comprehensive updates
+          };
+        }
+        return order;
+      }));
+
+      // If the updated order is currently selected in the finance drawer, refresh it
+      if (financeDrawerOrderId === orderUpdate.orderId) {
+        setFinanceDrawerLoading(true);
+        authFetch(`/finance/orders/${orderUpdate.orderId}`)
+          .then((data) => setFinanceOrderDetail(data as Record<string, unknown>))
+          .catch(() => setFinanceOrderDetail(null))
+          .finally(() => setFinanceDrawerLoading(false));
+      }
+    });
+
+    return unsubscribe;
+  }, [realtimeEnabled, subscribeToOrderUpdates, financeDrawerOrderId]);
 
   useEffect(() => {
     if (!financeDrawerOrderId) {
@@ -328,7 +363,23 @@ export default function OrdersPage() {
           <h1 className="text-2xl font-bold text-slate-900">Orders</h1>
           <p className="mt-1 text-sm text-slate-600">Manage and process orders from all channels</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`} />
+            <span className="text-sm text-slate-600">
+              {isConnected ? "Live" : "Offline"}
+            </span>
+          </div>
+          <button
+            onClick={() => setRealtimeEnabled(!realtimeEnabled)}
+            className={`px-3 py-1.5 text-sm font-medium rounded-lg border ${
+              realtimeEnabled 
+                ? "bg-green-50 text-green-700 border-green-200" 
+                : "bg-slate-50 text-slate-700 border-slate-200"
+            }`}
+          >
+            {realtimeEnabled ? "Real-time ON" : "Real-time OFF"}
+          </button>
           <Link
             href="/dashboard/integrations"
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
