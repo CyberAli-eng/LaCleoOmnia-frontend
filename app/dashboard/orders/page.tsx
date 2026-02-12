@@ -24,15 +24,17 @@ interface Order {
   paymentId?: string;
   paidAt?: string;
   settledAt?: string;
-  // Shipment information
-  shipment?: {
+  // Shopify-centric shipment information
+  shipments?: {
+    id: string;
+    shopifyFulfillmentId: string;
+    trackingNumber: string;
     courier: string;
-    awb: string;
-    status: string;
-    lastUpdate: string;
-    forwardCost: number;
-    reverseCost: number;
-  };
+    fulfillmentStatus: string;
+    deliveryStatus: string;
+    selloshipStatus: string;
+    lastSyncedAt: string;
+  }[];
   // Order details
   items?: OrderItem[];
   orderTotal?: number;
@@ -229,6 +231,45 @@ export default function OrdersPage() {
     );
   };
 
+  const getFulfillmentBadge = (status: string) => {
+    const colors: Record<string, string> = {
+      PENDING: "bg-gray-50 text-gray-700",
+      FULFILLED: "bg-blue-50 text-blue-700",
+      PARTIAL: "bg-yellow-50 text-yellow-700",
+      CANCELLED: "bg-red-50 text-red-700",
+    };
+    return (
+      <span className={`px-2 py-0.5 rounded text-xs font-medium ${colors[status] || "bg-gray-50 text-gray-700"}`}>
+        {status}
+      </span>
+    );
+  };
+
+  const getDeliveryStatusBadge = (status: string) => {
+    const colors: Record<string, string> = {
+      PENDING: "bg-gray-50 text-gray-700",
+      SHIPPED: "bg-blue-50 text-blue-700",
+      IN_TRANSIT: "bg-blue-50 text-blue-700",
+      DELIVERED: "bg-green-50 text-green-700",
+      RTO: "bg-orange-50 text-orange-700",
+      RTO_INITIATED: "bg-orange-50 text-orange-700",
+      RTO_DONE: "bg-red-50 text-red-700",
+      LOST: "bg-red-50 text-red-700",
+      CANCELLED: "bg-red-50 text-red-700",
+    };
+    return (
+      <span className={`px-2 py-0.5 rounded text-xs font-medium ${colors[status] || "bg-gray-50 text-gray-700"}`}>
+        {status}
+      </span>
+    );
+  };
+
+  const getShipmentStatusBadge = (selloshipStatus: string, deliveryStatus: string) => {
+    // Use Selloship status if available, otherwise use delivery status
+    const status = selloshipStatus || deliveryStatus;
+    return getDeliveryStatusBadge(status);
+  };
+
   // Lifecycle is Shopify → Shipment → Delivered/RTO → Finance. No internal confirm step.
   // Keep helpers for potential future use, but do not expose confirm in UI.
   const canConfirm = (_order: Order) => false;
@@ -352,16 +393,14 @@ export default function OrdersPage() {
                 <th className="text-left py-3 px-4 font-semibold text-slate-700">Cash Status</th>
                 <th className="text-left py-3 px-4 font-semibold text-slate-700">ETA</th>
                 <th className="text-left py-3 px-4 font-semibold text-slate-700">Risk</th>
-                <th className="text-left py-3 px-4 font-semibold text-slate-700">Payment Status</th>
-                <th className="text-left py-3 px-4 font-semibold text-slate-700">Gateway</th>
+                <th className="text-left py-3 px-4 font-semibold text-slate-700">Fulfillment</th>
+                <th className="text-left py-3 px-4 font-semibold text-slate-700">Delivery</th>
+                <th className="text-left py-3 px-4 font-semibold text-slate-700">Tracking ID</th>
+                <th className="text-left py-3 px-4 font-semibold text-slate-700">Courier</th>
+                <th className="text-left py-3 px-4 font-semibold text-slate-700">Shipment Status</th>
+                <th className="text-left py-3 px-4 font-semibold text-slate-700">Last Update</th>
                 <th className="text-left py-3 px-4 font-semibold text-slate-700">Paid Date</th>
                 <th className="text-left py-3 px-4 font-semibold text-slate-700">Settled Date</th>
-                <th className="text-left py-3 px-4 font-semibold text-slate-700">Source</th>
-                <th className="text-left py-3 px-4 font-semibold text-slate-700">Courier</th>
-                <th className="text-left py-3 px-4 font-semibold text-slate-700">AWB</th>
-                <th className="text-left py-3 px-4 font-semibold text-slate-700">Status</th>
-                <th className="text-left py-3 px-4 font-semibold text-slate-700">Last Update</th>
-                <th className="text-left py-3 px-4 font-semibold text-slate-700">Date</th>
                 <th className="text-center py-3 px-4 font-semibold text-slate-700">Actions</th>
               </tr>
             </thead>
@@ -438,41 +477,96 @@ export default function OrdersPage() {
                       <span className="text-slate-400">—</span>
                     )}
                   </td>
-                  <td className="py-3 px-4 text-slate-600">
-                    {order.paymentStatus ? (
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        order.paymentStatus === 'SETTLED' ? 'bg-green-50 text-green-700' :
-                        order.paymentStatus === 'PENDING' ? 'bg-yellow-50 text-yellow-700' :
-                        'bg-red-50 text-red-700'
-                      }`}>
-                        {order.paymentStatus}
-                      </span>
+                  <td className="py-3 px-4">
+                    {order.shipments && order.shipments.length > 0 ? (
+                      <div className="space-y-1">
+                        {order.shipments.map((shipment, idx) => (
+                          <div key={idx}>
+                            {getFulfillmentBadge(shipment.fulfillmentStatus || 'PENDING')}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </td>
+                  <td className="py-3 px-4">
+                    {order.shipments && order.shipments.length > 0 ? (
+                      <div className="space-y-1">
+                        {order.shipments.map((shipment, idx) => (
+                          <div key={idx}>
+                            {getDeliveryStatusBadge(shipment.deliveryStatus || 'PENDING')}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </td>
+                  <td className="py-3 px-4">
+                    {order.shipments && order.shipments.length > 0 ? (
+                      <div className="space-y-1">
+                        {order.shipments.map((shipment, idx) => (
+                          <div key={idx} className="font-mono text-xs">
+                            {shipment.trackingNumber ? (
+                              <a
+                                href={`#`}
+                                className="text-blue-600 hover:text-blue-800 underline"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  // TODO: Open tracking modal
+                                }}
+                              >
+                                {shipment.trackingNumber}
+                              </a>
+                            ) : (
+                              <span className="text-slate-400">—</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </td>
+                  <td className="py-3 px-4">
+                    {order.shipments && order.shipments.length > 0 ? (
+                      <div className="space-y-1">
+                        {order.shipments.map((shipment, idx) => (
+                          <div key={idx} className="text-xs">
+                            {shipment.courier || '—'}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </td>
+                  <td className="py-3 px-4">
+                    {order.shipments && order.shipments.length > 0 ? (
+                      <div className="space-y-1">
+                        {order.shipments.map((shipment, idx) => (
+                          <div key={idx}>
+                            {getShipmentStatusBadge(shipment.selloshipStatus || '', shipment.deliveryStatus || '')}
+                          </div>
+                        ))}
+                      </div>
                     ) : (
                       <span className="text-slate-400">—</span>
                     )}
                   </td>
                   <td className="py-3 px-4 text-slate-600">
-                    {order.paymentGateway || '—'}
-                  </td>
-                  <td className="py-3 px-4 text-slate-600">
-                    {order.paidAt ? new Date(order.paidAt).toLocaleDateString() : '—'}
-                  </td>
-                  <td className="py-3 px-4 text-slate-600">
-                    {order.settledAt ? new Date(order.settledAt).toLocaleDateString() : '—'}
-                  </td>
-                  <td className="py-3 px-4 text-slate-600">
-                    {order.shipment?.courier || '—'}
-                  </td>
-                  <td className="py-3 px-4 text-slate-600">
-                    {order.shipment?.awb || '—'}
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.shipment?.status || 'CREATED')}`}>
-                      {order.shipment?.status || '—'}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-slate-600">
-                    {order.shipment?.lastUpdate ? new Date(order.shipment.lastUpdate).toLocaleDateString() : '—'}
+                    {order.shipments && order.shipments.length > 0 ? (
+                      <div className="space-y-1">
+                        {order.shipments.map((shipment, idx) => (
+                          <div key={idx} className="text-xs">
+                            {shipment.lastSyncedAt ? new Date(shipment.lastSyncedAt).toLocaleDateString() : '—'}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
                   </td>
                   <td className="py-3 px-4">
                     <div className="flex items-center justify-center gap-2">

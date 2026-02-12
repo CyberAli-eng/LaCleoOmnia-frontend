@@ -203,6 +203,38 @@ export default function WorkersPage() {
     }
   };
 
+  const triggerSyncExistingOrders = async () => {
+    setLoading("existing-orders-global");
+    setMessage(null);
+    try {
+      const res = await authFetch("/sync/existing-orders", { method: "POST" }) as { 
+        success: boolean; 
+        message?: string; 
+        data?: { stats: any }
+      };
+      
+      if (res.success) {
+        const stats = res.data?.stats || {};
+        setMessage({
+          text: res.message ?? `Checked ${stats.orders_checked || 0} orders, created ${stats.shipments_created || 0} shipments with ${stats.tracking_numbers_found || 0} tracking numbers.`,
+          type: "success",
+        });
+      } else {
+        setMessage({
+          text: res.message || "Existing orders sync failed.",
+          type: "error",
+        });
+      }
+      
+      await loadJobs();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Existing orders sync failed.";
+      setMessage({ text: message, type: "error" });
+    } finally {
+      setLoading(null);
+    }
+  };
+
   const triggerSyncInventory = async (channelId: string) => {
     if (channelId !== "SHOPIFY") {
       setMessage({ text: "Inventory sync is only available for Shopify.", type: "error" });
@@ -324,11 +356,20 @@ export default function WorkersPage() {
           >
             {loading === "full-sync" ? "Full Sync..." : "Full Sync"}
           </button>
+          <button
+            type="button"
+            onClick={triggerSyncExistingOrders}
+            disabled={!!loading}
+            className="rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {loading === "existing-orders-global" ? "Syncing..." : "Sync Existing Orders"}
+          </button>
         </div>
         <div className="mt-4 text-xs text-slate-500">
           <p><strong>Sync Shopify Orders:</strong> Fetches all orders (fulfilled + unfulfilled) with tracking numbers</p>
           <p><strong>Sync Shipments:</strong> Updates shipment status from couriers (Selloship, etc.)</p>
           <p><strong>Full Sync:</strong> Runs both Shopify and shipment sync together</p>
+          <p><strong>Sync Existing Orders:</strong> Checks existing orders in your database for missing tracking numbers from Shopify</p>
         </div>
       </div>
 

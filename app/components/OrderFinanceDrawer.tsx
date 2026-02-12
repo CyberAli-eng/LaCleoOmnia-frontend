@@ -60,15 +60,17 @@ interface OrderFinance {
   paymentStatus?: "PAID" | "SETTLED";
   paid_at?: string;
   settled_at?: string;
-  // Shipment information
-  shipment?: {
+  // Shopify-centric shipment information
+  shipments?: Array<{
+    id: string;
+    shopifyFulfillmentId: string;
+    trackingNumber: string;
     courier: string;
-    awb: string;
-    shipmentStatus: string;
-    lastUpdate: string;
-    forwardCost: number;
-    reverseCost: number;
-  };
+    fulfillmentStatus: string;
+    deliveryStatus: string;
+    selloshipStatus: string;
+    lastSyncedAt: string;
+  }>;
   // Settlement details
   gateway_fees?: number;
   gateway_tax?: number;
@@ -299,56 +301,105 @@ export default function OrderFinanceDrawer({ orderId, isOpen, onClose }: OrderFi
             )}
 
             {/* Shipment Panel */}
-            {orderFinance.shipment && (
+            {orderFinance.shipments && orderFinance.shipments.length > 0 && (
               <div>
                 <h4 className="text-base font-semibold text-slate-900 mb-4">📦 Shipment Panel</h4>
-                <div className="bg-slate-50 rounded-lg p-4">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                      <span className="text-sm text-slate-500">Courier</span>
-                      <div className="font-medium text-slate-900">{orderFinance.shipment?.courier || '—'}</div>
-                    </div>
-                    <div>
-                      <span className="text-sm text-slate-500">AWB</span>
-                      <div className="font-medium text-slate-900">{orderFinance.shipment?.awb || '—'}</div>
-                    </div>
-                    <div>
-                      <span className="text-sm text-slate-500">Status</span>
-                      <div className="font-medium text-slate-900">{orderFinance.shipment?.shipmentStatus || '—'}</div>
-                    </div>
-                    <div>
-                      <span className="text-sm text-slate-500">Last Update</span>
-                      <div className="font-medium text-slate-900">
-                        {orderFinance.shipment?.lastUpdate ? new Date(orderFinance.shipment.lastUpdate).toLocaleDateString() : '—'}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Cost Breakdown */}
-                  <div className="mt-4 pt-4 border-t border-slate-200">
-                    <h5 className="text-sm font-medium text-slate-700 mb-3">Cost Breakdown</h5>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <span className="text-sm text-slate-500">Forward Cost (Auto)</span>
-                        <div className="font-medium text-slate-900">
-                          {formatCurrency(orderFinance.shipment?.forwardCost || 0)}
+                <div className="space-y-4">
+                  {orderFinance.shipments.map((shipment, idx) => (
+                    <div key={idx} className="bg-slate-50 rounded-lg p-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                        <div>
+                          <span className="text-sm text-slate-500">Tracking Number</span>
+                          <div className="font-medium text-slate-900 font-mono text-sm">
+                            {shipment.trackingNumber ? (
+                              <a
+                                href={`#`}
+                                className="text-blue-600 hover:text-blue-800 underline"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  // TODO: Open tracking modal
+                                }}
+                              >
+                                {shipment.trackingNumber}
+                              </a>
+                            ) : (
+                              '—'
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-sm text-slate-500">Courier</span>
+                          <div className="font-medium text-slate-900">{shipment.courier || '—'}</div>
+                        </div>
+                        <div>
+                          <span className="text-sm text-slate-500">Fulfillment</span>
+                          <div className="font-medium text-slate-900">
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                              shipment.fulfillmentStatus === 'FULFILLED' ? 'bg-blue-50 text-blue-700' :
+                              shipment.fulfillmentStatus === 'PARTIAL' ? 'bg-yellow-50 text-yellow-700' :
+                              shipment.fulfillmentStatus === 'CANCELLED' ? 'bg-red-50 text-red-700' :
+                              'bg-gray-50 text-gray-700'
+                            }`}>
+                              {shipment.fulfillmentStatus || 'PENDING'}
+                            </span>
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-sm text-slate-500">Delivery</span>
+                          <div className="font-medium text-slate-900">
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                              shipment.deliveryStatus === 'DELIVERED' ? 'bg-green-50 text-green-700' :
+                              shipment.deliveryStatus === 'IN_TRANSIT' || shipment.deliveryStatus === 'SHIPPED' ? 'bg-blue-50 text-blue-700' :
+                              shipment.deliveryStatus === 'RTO' || shipment.deliveryStatus === 'RTO_INITIATED' ? 'bg-orange-50 text-orange-700' :
+                              shipment.deliveryStatus === 'RTO_DONE' || shipment.deliveryStatus === 'LOST' ? 'bg-red-50 text-red-700' :
+                              'bg-gray-50 text-gray-700'
+                            }`}>
+                              {shipment.deliveryStatus || 'PENDING'}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                      <div>
-                        <span className="text-sm text-slate-500">Reverse Cost (Auto)</span>
-                        <div className="font-medium text-slate-900">
-                          {formatCurrency(orderFinance.shipment?.reverseCost || 0)}
+                      
+                      {/* Selloship Status Enrichment */}
+                      {shipment.selloshipStatus && (
+                        <div className="border-t border-slate-200 pt-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className="text-sm text-slate-500">Selloship Status</span>
+                              <div className="font-medium text-slate-900">
+                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                  shipment.selloshipStatus === 'DELIVERED' ? 'bg-green-50 text-green-700' :
+                                  shipment.selloshipStatus === 'IN_TRANSIT' ? 'bg-blue-50 text-blue-700' :
+                                  shipment.selloshipStatus === 'RTO' ? 'bg-orange-50 text-orange-700' :
+                                  'bg-gray-50 text-gray-700'
+                                }`}>
+                                  {shipment.selloshipStatus}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-sm text-slate-500">Last Synced</span>
+                              <div className="font-medium text-slate-900 text-xs">
+                                {shipment.lastSyncedAt ? new Date(shipment.lastSyncedAt).toLocaleDateString() : '—'}
+                              </div>
+                            </div>
+                          </div>
                         </div>
+                      )}
+                      
+                      {/* Refresh Status Button */}
+                      <div className="border-t border-slate-200 pt-3 mt-3">
+                        <button
+                          onClick={() => {
+                            // TODO: Refresh shipment status
+                          }}
+                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                        >
+                          🔄 Refresh Status
+                        </button>
                       </div>
                     </div>
-                  </div>
-                  
-                  {/* Refresh Button */}
-                  <div className="mt-4 pt-4 border-t border-slate-200">
-                    <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors">
-                      🔄 Refresh Status
-                    </button>
-                  </div>
+                  ))}
                 </div>
               </div>
             )}
