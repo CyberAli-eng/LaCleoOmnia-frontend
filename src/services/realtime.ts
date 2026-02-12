@@ -55,7 +55,7 @@ class RealtimeService {
         return;
       }
 
-      const url = `/api/webhooks/events/stream`;
+      const url = `${window.location.origin}/api/webhooks/events/stream`;
       this.eventSource = new EventSource(url);
 
       this.eventSource.onopen = () => {
