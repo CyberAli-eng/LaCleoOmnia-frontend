@@ -86,6 +86,27 @@ interface OrderFinanceDrawerProps {
   onClose: () => void;
 }
 
+// Refresh shipment status function
+  const refreshShipmentStatus = async (trackingNumber: string, orderData: OrderFinance | null) => {
+    try {
+      const response = await authFetch(`/shipments/v2/sync/status/${trackingNumber}`, {
+        method: 'POST'
+      });
+      if (response.ok) {
+        console.log(`Refreshed status for ${trackingNumber}`);
+        // Reload finance drawer to show updated status
+        if (orderData?.id) {
+          const updatedData = await authFetch(`/finance/orders/${orderData.id}`);
+          setOrderFinance(updatedData);
+        }
+      } else {
+        console.error(`Failed to refresh status for ${trackingNumber}`);
+      }
+    } catch (error) {
+      console.error(`Error refreshing shipment status:`, error);
+    }
+  };
+
 export default function OrderFinanceDrawer({ orderId, isOpen, onClose }: OrderFinanceDrawerProps) {
   const [orderFinance, setOrderFinance] = useState<OrderFinance | null>(null);
   const [loading, setLoading] = useState(true);
@@ -388,16 +409,16 @@ export default function OrderFinanceDrawer({ orderId, isOpen, onClose }: OrderFi
                       )}
                       
                       {/* Refresh Status Button */}
-                      <div className="border-t border-slate-200 pt-3 mt-3">
-                        <button
-                          onClick={() => {
-                            // TODO: Refresh shipment status
-                          }}
-                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-                        >
-                          🔄 Refresh Status
-                        </button>
-                      </div>
+                      {orderFinance?.shipments && orderFinance.shipments.length > 0 && (
+                        <div className="border-t border-slate-200 pt-3 mt-3">
+                          <button
+                            onClick={() => refreshShipmentStatus(orderFinance.shipments[0].trackingNumber)}
+                            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                          >
+                            🔄 Refresh Shipment Status
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

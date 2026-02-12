@@ -102,6 +102,41 @@ export default function OrdersPage() {
     setPage(1);
   }, [searchTerm, statusFilter]);
 
+  // API functions for shipment operations
+  const refreshShipmentStatus = async (trackingNumber: string) => {
+    try {
+      const response = await authFetch(`/shipments/v2/sync/status/${trackingNumber}`, {
+        method: 'POST'
+      });
+      if (response.ok) {
+        console.log(`Refreshed status for ${trackingNumber}`);
+        // Reload orders to show updated status
+        await loadOrders();
+      } else {
+        console.error(`Failed to refresh status for ${trackingNumber}`);
+      }
+    } catch (error) {
+      console.error(`Error refreshing shipment status:`, error);
+    }
+  };
+
+  const syncShopifyFulfillments = async (orderId: string) => {
+    try {
+      const response = await authFetch(`/shipments/v2/sync/order/${orderId}`, {
+        method: 'POST'
+      });
+      if (response.ok) {
+        console.log(`Synced Shopify fulfillments for order ${orderId}`);
+        // Reload orders to show updated shipments
+        await loadOrders();
+      } else {
+        console.error(`Failed to sync Shopify fulfillments for order ${orderId}`);
+      }
+    } catch (error) {
+      console.error(`Error syncing Shopify fulfillments:`, error);
+    }
+  };
+
   const loadOrders = async () => {
     setLoading(true);
     try {
@@ -544,15 +579,43 @@ export default function OrdersPage() {
                   </td>
                   <td className="py-3 px-4">
                     {order.shipments && order.shipments.length > 0 ? (
-                      <div className="space-y-1">
+                      <div className="space-y-2">
                         {order.shipments.map((shipment, idx) => (
-                          <div key={idx}>
-                            {getShipmentStatusBadge(shipment.selloshipStatus || '', shipment.deliveryStatus || '')}
+                          <div key={idx} className="border-l border-slate-200 pl-3 py-2">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs text-slate-500">Source</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-medium text-blue-600">Shopify</span>
+                                <span className="text-xs text-slate-400">→</span>
+                                <span className="text-xs font-medium text-green-600">Selloship</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-slate-500">Status</span>
+                              {getShipmentStatusBadge(shipment.selloshipStatus || '', shipment.deliveryStatus || 'PENDING')}
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-slate-500">Last Sync</span>
+                              <button
+                                onClick={() => refreshShipmentStatus(shipment.trackingNumber)}
+                                className="text-xs text-blue-600 hover:text-blue-800 underline"
+                              >
+                                🔄 Refresh
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <span className="text-slate-400">—</span>
+                      <div className="text-center py-4">
+                        <span className="text-slate-400 text-sm">No shipments found</span>
+                        <button
+                          onClick={() => syncShopifyFulfillments(order.id)}
+                          className="mt-2 px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                        >
+                          🔄 Sync from Shopify
+                        </button>
+                      </div>
                     )}
                   </td>
                   <td className="py-3 px-4 text-slate-600">
