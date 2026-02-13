@@ -652,7 +652,7 @@ export default function OrdersPage() {
                       <div className="space-y-1">
                         {order.shipments.map((shipment, idx) => (
                           <div key={idx} className="text-xs">
-                            {shipment.courier || '—'}
+                            {shipment.trackingCompany || shipment.courier || '—'}
                           </div>
                         ))}
                       </div>
