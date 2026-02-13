@@ -37,7 +37,7 @@ export function NavAnchor({
         const regex = new RegExp(pattern);
         return regex.test(pathname);
       } catch (e) {
-        console.error('Invalid pattern:', pattern, e);
+        // Invalid pattern - return false silently
         return false;
       }
     }

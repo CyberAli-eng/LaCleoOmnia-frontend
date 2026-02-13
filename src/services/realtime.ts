@@ -43,7 +43,7 @@ class RealtimeService {
    */
   connect(): void {
     if (this.eventSource && this.eventSource.readyState === EventSource.OPEN) {
-      console.log("Realtime service already connected");
+      // Already connected
       return;
     }
 
@@ -51,7 +51,7 @@ class RealtimeService {
       // Get auth token from localStorage or cookies
       const token = this.getAuthToken();
       if (!token) {
-        console.warn("No auth token available for realtime connection");
+        // No auth token available - skip connection
         return;
       }
 
@@ -59,7 +59,6 @@ class RealtimeService {
       this.eventSource = new EventSource(url);
 
       this.eventSource.onopen = () => {
-        console.log("Realtime service connected");
         this.isConnected = true;
         this.reconnectAttempts = 0;
         this.reconnectDelay = 1000;
@@ -160,8 +159,7 @@ class RealtimeService {
     this.reconnectAttempts++;
     const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
 
-    console.log(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts})`);
-
+    // Attempt reconnection with exponential backoff
     setTimeout(() => {
       if (!this.isConnected) {
         this.connect();
