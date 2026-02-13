@@ -128,7 +128,7 @@ export default function WebhooksPage() {
       );
       setSubscriptions(Array.isArray(subscriptionsData) ? subscriptionsData : (subscriptionsData?.subscriptions ?? []));
     } catch (err) {
-      console.error("Failed to load webhooks:", err);
+      // Failed to load webhooks
     }
   };
 
@@ -438,12 +438,15 @@ export default function WebhooksPage() {
                   </div>
                 </div>
               )}
-              {selectedEvent.payload && !selectedEvent.payloadSummary && (
+              {selectedEvent.payload != null && !selectedEvent.payloadSummary && (
                 <div>
                   <p className="text-sm font-medium text-slate-900 mb-2">Payload</p>
                   <div className="text-sm text-slate-600">
                     <pre className="whitespace-pre-wrap text-xs bg-slate-50 p-2 rounded">
-                      {JSON.stringify(selectedEvent.payload, null, 2)}
+                      {typeof selectedEvent.payload === 'string' 
+                        ? selectedEvent.payload 
+                        : JSON.stringify(selectedEvent.payload, null, 2)
+                      }
                     </pre>
                   </div>
                 </div>

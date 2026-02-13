@@ -94,7 +94,7 @@ export default function OrdersPage() {
     if (!realtimeEnabled) return;
 
     const unsubscribe = subscribeToOrderUpdates((orderUpdate: OrderUpdate) => {
-      // Update the order in the local state if it exists
+      // Update order in local state if it exists
       setOrders(prev => prev.map(order => {
         if (order.id === orderUpdate.orderId) {
           return {
@@ -144,14 +144,13 @@ export default function OrdersPage() {
         method: 'POST'
       });
       if (response.ok) {
-        console.log(`Refreshed status for ${trackingNumber}`);
         // Reload orders to show updated status
         await loadOrders();
       } else {
-        console.error(`Failed to refresh status for ${trackingNumber}`);
+        // Failed to refresh status
       }
     } catch (error) {
-      console.error(`Error refreshing shipment status:`, error);
+      // Error refreshing shipment status
     }
   };
 
@@ -161,14 +160,13 @@ export default function OrdersPage() {
         method: 'POST'
       });
       if (response.ok) {
-        console.log(`Synced Shopify fulfillments for order ${orderId}`);
         // Reload orders to show updated shipments
         await loadOrders();
       } else {
-        console.error(`Failed to sync Shopify fulfillments for order ${orderId}`);
+        // Failed to sync Shopify fulfillments
       }
     } catch (error) {
-      console.error(`Error syncing Shopify fulfillments:`, error);
+      // Error syncing Shopify fulfillments
     }
   };
 
@@ -182,7 +180,7 @@ export default function OrdersPage() {
       setOrders(Array.isArray(ordersRes?.orders) ? ordersRes.orders : []);
       setShopifyOrders(Array.isArray(shopifyRes?.orders) ? shopifyRes.orders : []);
     } catch (err) {
-      console.error("Failed to load orders:", err);
+      // Failed to load orders
     } finally {
       setLoading(false);
     }
@@ -203,7 +201,6 @@ export default function OrdersPage() {
       setSelectedOrders(new Set());
       setBulkAction("");
     } catch (err) {
-      console.error("Bulk action failed:", err);
       alert("Some actions failed. Please try again.");
     } finally {
       setProcessing(new Set());

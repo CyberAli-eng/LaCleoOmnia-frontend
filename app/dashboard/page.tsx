@@ -90,7 +90,7 @@ export default function DashboardPage() {
         setLastSync(last?.finishedAt || last?.startedAt || last?.createdAt || null);
       }
     } catch (err) {
-      console.error("Failed to load dashboard:", err);
+      // Failed to load dashboard
     } finally {
       setLoading(false);
     }

@@ -94,7 +94,7 @@ export default function InventoryPage() {
         setShopifyInventoryWarning(shopifyData.warning);
       }
     } catch (err) {
-      console.error("Failed to load data:", err);
+      // Failed to load data
     } finally {
       setLoading(false);
     }

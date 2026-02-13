@@ -146,38 +146,29 @@ function IntegrationsPageContent() {
 
   const loadCatalog = useCallback(async () => {
     try {
-      console.log('[DEBUG] Loading catalog from /integrations/catalog');
       const data = (await authFetch("/integrations/catalog")) as Catalog;
-      console.log('[DEBUG] Catalog loaded:', data);
       
       setCatalog(data || { sections: [] });
       if (data?.sections) {
-        console.log('[DEBUG] Loading provider statuses for', data.sections.length, 'sections');
         for (const section of data.sections) {
           for (const provider of section.providers) {
             loadProviderStatus(provider);
           }
         }
-      } else {
-        console.warn('[DEBUG] No sections in catalog data');
       }
     } catch (err) {
-      console.error("Failed to load catalog:", err);
       setCatalog({ sections: [] });
     }
   }, []);
 
   useEffect(() => {
-    console.log('[DEBUG] Component mounted, loading catalog and connected channels');
     loadCatalog();
     authFetch("/integrations/connected-summary")
       .then((list: any) => {
-        console.log('[DEBUG] Connected channels:', list);
         setConnectedChannels(Array.isArray(list) ? list : []);
       })
       .catch((err) => {
-        console.error('[DEBUG] Failed to load connected channels:', err);
-        setConnectedChannels([]);
+        // Failed to load connected channels
       });
   }, [loadCatalog]);
 

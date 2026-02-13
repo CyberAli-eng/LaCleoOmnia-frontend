@@ -64,7 +64,6 @@ export default function SettlementsPage() {
       const response = await authFetch(`/settlements?${params.toString()}`);
       setData(response as SettlementsResponse);
     } catch (err) {
-      console.error("Failed to load settlements:", err);
       setError(err instanceof Error ? err.message : "Failed to load settlements");
     } finally {
       setLoading(false);
@@ -107,7 +106,7 @@ export default function SettlementsPage() {
       });
       loadSettlements(); // Reload data
     } catch (err) {
-      console.error("Failed to mark settlement overdue:", err);
+      // Failed to mark settlement overdue
     }
   };
 
@@ -118,7 +117,7 @@ export default function SettlementsPage() {
       });
       loadSettlements(); // Reload data
     } catch (err) {
-      console.error("Failed to sync settlements:", err);
+      // Failed to sync settlements
     }
   };
 
