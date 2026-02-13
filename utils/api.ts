@@ -81,11 +81,19 @@ export async function fetchFromApi(path: string, init?: RequestInit) {
                     /* use msg as-is */
                 }
                 const err = new Error(msg);
-                // Retry on 5xx only (not 4xx)
+                // Retry on 5xx only (not 4xx), but allow 409 as success for sync operations
                 if (attempt < RETRY_MAX && res.status >= 500) {
                     lastError = err;
                     await delay(RETRY_DELAY_MS);
                     continue;
+                }
+                // Don't throw error for 409 Conflict (expected for sync operations)
+                if (res.status === 409) {
+                    try {
+                        return JSON.parse(text);
+                    } catch {
+                        return { detail: msg };
+                    }
                 }
                 throw err;
             }
